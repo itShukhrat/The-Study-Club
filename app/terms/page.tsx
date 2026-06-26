@@ -52,8 +52,8 @@ export default function TermsPage() {
       <p>
         We may update these terms as Study Club grows; we&apos;ll flag anything
         material. Questions go to{" "}
-        <a className="text-signal" href="mailto:hello@studyclub.app">
-          hello@studyclub.app
+        <a className="text-signal" href="mailto:contact@StudyClub.uz">
+          contact@StudyClub.uz
         </a>
         .
       </p>

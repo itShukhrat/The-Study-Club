@@ -56,8 +56,8 @@ export default function PrivacyPage() {
       <H2>Your control</H2>
       <p>
         You can export or delete everything from Profile, or by emailing{" "}
-        <a className="text-signal" href="mailto:privacy@studyclub.app">
-          privacy@studyclub.app
+        <a className="text-signal" href="mailto:contact@StudyClub.uz">
+          contact@StudyClub.uz
         </a>
         . Leaving the club removes your account and personal data.
       </p>

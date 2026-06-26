@@ -93,6 +93,21 @@ export function AuthStep({
       const supabase = createClient();
       const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "signup" });
       if (error) throw error;
+      // tell the team a new member joined (fire-and-forget)
+      void fetch("/api/notify", {
+        method: "POST",
+        keepalive: true,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          type: "signup",
+          name: data.name,
+          email,
+          targetScore: data.targetScore,
+          examDate: data.examDate,
+          fears: data.fears,
+          struggles: data.struggles,
+        }),
+      }).catch(() => {});
       onComplete();
     } catch (e) {
       setError(e instanceof Error ? e.message : "That code didn't work.");

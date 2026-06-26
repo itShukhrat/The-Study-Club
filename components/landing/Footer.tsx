@@ -36,7 +36,7 @@ export function Footer() {
             links={[
               ["Privacy", "/privacy"],
               ["Terms", "/terms"],
-              ["Contact", "mailto:hello@studyclub.app"],
+              ["Contact", "mailto:contact@StudyClub.uz"],
             ]}
           />
         </div>
