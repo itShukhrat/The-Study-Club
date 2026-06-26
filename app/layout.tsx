@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Anton, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Tracker } from "@/components/analytics/Tracker";
+import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -56,6 +58,8 @@ export default function RootLayout({
     >
       <body className="grain vignette min-h-dvh bg-ink text-bone selection:bg-signal">
         {children}
+        <Tracker />
+        <ConsentBanner />
       </body>
     </html>
   );

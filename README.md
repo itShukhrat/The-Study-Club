@@ -50,6 +50,24 @@ Onboarding accepts any 6-digit code and the dashboard reads your route from
 Once the env vars are present, the door at `/enter` creates real accounts and
 `/dashboard` becomes a protected route (guarded in `proxy.ts`).
 
+## Analytics & insights (own, privacy-first)
+
+With cookie consent, the app records pageviews, scroll depth, click **heatmaps**,
+and coarse location (country/region/city from a *hashed* IP — never the raw IP)
+into Supabase via `/api/track` and `/api/consent` (service-role, RLS-locked).
+Registration survey answers (fears, struggles) persist to `profiles`.
+
+`/dashboard/insights` reads it all back as live charts (visitors, top pages,
+countries, click heatmap, survey breakdown). Restricted to `ADMIN_EMAILS`.
+Schema: `supabase/analytics.sql`. Used only to assess level and serve the right
+material — never sold.
+
+## Email (Resend → Supabase SMTP)
+
+Supabase Auth is wired to send through Resend from a verified domain, so signup
+codes, password resets, and email changes are real, branded emails. Configure
+in the Supabase dashboard (Auth → SMTP) or via the Management API.
+
 ## AI (DeepSeek) + Desmos
 
 - **DeepSeek** powers the coach (`/api/coach`) and question explanations

@@ -24,13 +24,16 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, club_name, target_score, exam_date)
+  insert into public.profiles (id, email, club_name, target_score, exam_date, fears, struggles, stay)
   values (
     new.id,
     new.email,
     new.raw_user_meta_data ->> 'full_name',
-    coalesce((new.raw_user_meta_data ->> 'target_score')::int, 1400),
-    (new.raw_user_meta_data ->> 'exam_date')::date
+    coalesce(nullif(new.raw_user_meta_data ->> 'target_score', '')::int, 1400),
+    nullif(new.raw_user_meta_data ->> 'exam_date', '')::date,
+    coalesce(array(select jsonb_array_elements_text(new.raw_user_meta_data -> 'fears')), '{}'),
+    coalesce(array(select jsonb_array_elements_text(new.raw_user_meta_data -> 'struggles')), '{}'),
+    coalesce((new.raw_user_meta_data ->> 'stay')::boolean, true)
   )
   on conflict (id) do nothing;
   return new;

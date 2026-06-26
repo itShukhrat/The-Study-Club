@@ -8,6 +8,7 @@ import {
   Trophy,
   Sparkles,
   User,
+  Activity,
   Landmark,
   Coins,
   PenLine,
@@ -31,6 +32,7 @@ export const PRIMARY_NAV: NavItem[] = [
 ];
 
 export const SECONDARY_NAV: NavItem[] = [
+  { label: "Insights", href: "/dashboard/insights", icon: Activity },
   { label: "Plans", href: "/dashboard/plans", icon: Sparkles },
   { label: "Profile", href: "/dashboard/profile", icon: User },
 ];

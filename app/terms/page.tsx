@@ -31,6 +31,16 @@ export default function TermsPage() {
         belongs to its respective owners and is used for practice only.
       </p>
 
+      <H2>Your data</H2>
+      <p>
+        To build your route we collect your registration answers, your practice, and
+        — only if you accept cookies — usage like pageviews, click heatmaps, and a
+        coarse location. We use this solely to assess your level and serve the right
+        material and tests. We never sell it or use it for anything illegal. Full
+        detail is in the{" "}
+        <a className="text-signal" href="/privacy">Privacy Policy</a>.
+      </p>
+
       <H2>The house rules</H2>
       <p>
         Show up. Study the miss. Protect the streak. Beyond the spirit of the

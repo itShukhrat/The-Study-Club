@@ -50,6 +50,9 @@ export function AuthStep({
             full_name: data.name,
             target_score: data.targetScore,
             exam_date: data.examDate,
+            fears: data.fears,
+            struggles: data.struggles,
+            stay: data.stay,
           },
         },
       });

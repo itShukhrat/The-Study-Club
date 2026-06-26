@@ -13,17 +13,37 @@ export default function PrivacyPage() {
 
       <H2>What we collect</H2>
       <p>
-        The route you build: your target score, exam date, the topics you
-        struggle with, and your Study Club name. Your email, used to sign you in
-        and keep your progress. The practice you do: answers, scores, streaks,
-        and the mistakes we turn into reps.
+        <strong>Your route &amp; survey answers.</strong> During registration you
+        tell us your target score, exam date, what scares you, and the topics you
+        struggle with. We keep those answers so we can assess your level and serve
+        the right material and tests — that&apos;s the whole point of asking.
+      </p>
+      <p>
+        <strong>Account.</strong> Your email and Study Club name, used to sign you
+        in, verify you, and keep your progress.
+      </p>
+      <p>
+        <strong>Your practice.</strong> Answers, scores, streaks, and the mistakes
+        we turn into reps.
+      </p>
+      <p>
+        <strong>Usage, with your consent.</strong> If you accept cookies, we record
+        which pages you visit, how far you scroll, and where you tap (aggregated into
+        anonymous heatmaps), plus a coarse location (country/region/city) derived from
+        your IP. We store a <em>salted hash</em> of your IP — never the raw address.
+        Decline, and we collect none of this.
       </p>
 
-      <H2>Why we collect it</H2>
+      <H2>Why we collect it — and what we&apos;ll never do</H2>
       <p>
-        To draw your personalized route and show honest progress. We do not use
-        your work to train models without consent, and we do not sell personal
-        information to third parties.
+        Every piece of this exists for one reason: to figure out where you stand and
+        give you the proper material, drills, and tests to move your score. We use it
+        to improve the product and your route.
+      </p>
+      <p>
+        We do <strong>not</strong> sell your personal information. We do <strong>not</strong>{" "}
+        share it for advertising, and we do <strong>not</strong> use it for anything
+        illegal or deceptive. We don&apos;t track you across other websites.
       </p>
 
       <H2>If you&apos;re under 13</H2>
@@ -44,9 +64,15 @@ export default function PrivacyPage() {
 
       <H2>Cookies & analytics</H2>
       <p>
-        We use essential cookies to keep you signed in, and privacy-respecting
-        analytics to understand which parts of the route work. You can opt out of
-        analytics without losing any functionality.
+        Essential cookies keep you signed in. Optional analytics cookies — which you
+        approve in the banner on your first visit — power our own privacy-respecting
+        analytics: pageviews, scroll depth, click heatmaps, and coarse location.
+        You can decline or change your mind anytime without losing any functionality.
+      </p>
+      <p>
+        Email (verification, password resets, changes) is sent through our processor
+        Resend; accounts and data are stored with Supabase. Both act on our behalf
+        under their own security commitments.
       </p>
     </LegalPage>
   );
