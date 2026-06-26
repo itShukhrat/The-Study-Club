@@ -6,30 +6,30 @@
    ============================================================ */
 
 @theme {
-  /* base surfaces */
-  --color-ink: #08080a;
-  --color-ink-1: #0c0c10;
-  --color-ink-2: #131319;
-  --color-ink-3: #1b1b22;
+  /* base surfaces — bright warm paper */
+  --color-ink: #f3efe6;
+  --color-ink-1: #ffffff;
+  --color-ink-2: #f7f3ea;
+  --color-ink-3: #ece6d8;
 
-  /* text */
-  --color-bone: #f4f1e9;
-  --color-bone-dim: #b8b5ac;
-  --color-ash: #76757c;
-  --color-ash-2: #4a4a51;
+  /* text — warm carbon */
+  --color-bone: #181611;
+  --color-bone-dim: #45413a;
+  --color-ash: #6f6b62;
+  --color-ash-2: #9a958b;
 
   /* signal */
-  --color-signal: #e8392b;
-  --color-signal-hi: #ff5345;
+  --color-signal: #d62313;
+  --color-signal-hi: #ef3a2b;
   --color-signal-deep: #a8160b;
 
-  /* paper (torn-note surfaces) */
-  --color-paper: #ece6d6;
-  --color-paper-ink: #14110b;
+  /* paper -> inverted dark accent block on the bright canvas */
+  --color-paper: #16140f;
+  --color-paper-ink: #f4f1e9;
 
   /* lines */
-  --color-line: rgba(244, 241, 233, 0.08);
-  --color-line-2: rgba(244, 241, 233, 0.14);
+  --color-line: rgba(24, 22, 17, 0.10);
+  --color-line-2: rgba(24, 22, 17, 0.17);
 
   /* type */
   --font-display: var(--font-anton), "Arial Narrow", sans-serif;
@@ -62,7 +62,7 @@ body {
 
 ::selection {
   background: var(--color-signal);
-  color: var(--color-bone);
+  color: #fff;
 }
 
 /* slim signal scrollbar */
@@ -74,7 +74,7 @@ body {
   background: var(--color-ink);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-ink-3);
+  background: #cfc8b8;
   border-radius: 999px;
   border: 2px solid var(--color-ink);
 }
@@ -109,7 +109,7 @@ body {
   inset: -50%;
   z-index: 60;
   pointer-events: none;
-  opacity: 0.05;
+  opacity: 0.035;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   animation: grain 7s steps(8) infinite;
 }
@@ -130,12 +130,12 @@ body {
   inset: 0;
   z-index: 55;
   pointer-events: none;
-  background: radial-gradient(120% 90% at 50% 0%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+  background: radial-gradient(120% 90% at 50% 0%, transparent 72%, rgba(24, 22, 17, 0.05) 100%);
 }
 
 /* ---------- surfaces ---------- */
 .glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.55));
   backdrop-filter: blur(14px) saturate(120%);
   -webkit-backdrop-filter: blur(14px) saturate(120%);
   border: 1px solid var(--color-line-2);
@@ -143,10 +143,11 @@ body {
 
 .card {
   background:
-    radial-gradient(120% 140% at 0% 0%, rgba(255, 255, 255, 0.035), transparent 45%),
+    radial-gradient(120% 140% at 0% 0%, rgba(214, 35, 19, 0.045), transparent 45%),
     var(--color-ink-1);
   border: 1px solid var(--color-line);
   border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgba(24,22,17,0.04), 0 18px 40px -28px rgba(24,22,17,0.22);
 }
 
 .card-hover {
@@ -155,14 +156,14 @@ body {
 .card-hover:hover {
   transform: translateY(-4px);
   border-color: var(--color-line-2);
-  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 26px 60px -30px rgba(24,22,17,0.28);
 }
 
 /* torn paper note (rules) */
 .paper {
   background: var(--color-paper);
   color: var(--color-paper-ink);
-  box-shadow: 0 20px 50px -24px rgba(0, 0, 0, 0.85);
+  box-shadow: 0 22px 50px -26px rgba(24,22,17,0.30);
 }
 
 /* ---------- glows / accents ---------- */
@@ -222,7 +223,7 @@ body {
 }
 .btn-signal {
   background: var(--color-signal);
-  color: var(--color-bone);
+  color: #fff;
 }
 .btn-signal:hover {
   background: var(--color-signal-hi);
@@ -235,7 +236,7 @@ body {
 }
 .btn-ghost:hover {
   border-color: var(--color-bone);
-  background: rgba(244, 241, 233, 0.04);
+  background: rgba(24, 22, 17, 0.05);
 }
 
 /* ---------- keyframes ---------- */
