@@ -377,3 +377,5 @@ body {
 .exam-strike:hover { border-color:var(--ember); color:var(--ember); }
 .exam-hl-on ::selection { background: rgba(255,214,0,.55); color: var(--carbon); }
 .exam-choice .exam-prose p { margin: 0; }
+/* Durden panel divider */
+.exam-divider { background: var(--paper-line); }

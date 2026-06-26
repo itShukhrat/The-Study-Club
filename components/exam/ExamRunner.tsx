@@ -8,15 +8,19 @@ import {
   Calculator as CalcIcon,
   Bookmark,
   BookmarkCheck,
-  ChevronUp,
+  ChevronDown,
   Clock,
-  EyeOff,
-  Eye,
   Highlighter,
   ArrowLeft,
   ArrowRight,
   X,
+  Pause,
+  Play,
+  FileText,
+  Flag,
+  StickyNote,
   Infinity as InfinityIcon,
+  Gem,
 } from "lucide-react";
 import type { ExamTest, AnswerMap, ExamQuestion } from "@/lib/exam";
 import { answerKey } from "@/lib/exam";
@@ -29,8 +33,20 @@ type Mode = "timed" | "untimed";
 function fmt(s: number) {
   const m = Math.floor(s / 60);
   const ss = s % 60;
-  return `${m}:${ss.toString().padStart(2, "0")}`;
+  return `${m.toString().padStart(2, "0")}:${ss.toString().padStart(2, "0")}`;
 }
+
+const REFERENCE: string[] = [
+  "A = πr²    C = 2πr",
+  "A = ℓw    A = ½bh",
+  "c² = a² + b²  (right triangle)",
+  "30-60-90 → x, x√3, 2x",
+  "45-45-90 → s, s, s√2",
+  "V = ℓwh    V = πr²h",
+  "V = 4/3·πr³    V = ⅓·πr²h",
+  "Circle = 360° = 2π rad",
+  "Triangle angles sum to 180°",
+];
 
 export function ExamRunner({ test }: { test: ExamTest }) {
   const router = useRouter();
@@ -41,182 +57,147 @@ export function ExamRunner({ test }: { test: ExamTest }) {
   const [marked, setMarked] = useState<Record<string, boolean>>({});
   const [elim, setElim] = useState<Record<string, Record<string, boolean>>>({});
   const [calcOpen, setCalcOpen] = useState(false);
+  const [refOpen, setRefOpen] = useState(false);
+  const [dirOpen, setDirOpen] = useState(false);
   const [durden, setDurden] = useState(false);
   const [highlight, setHighlight] = useState(false);
   const [hideTimer, setHideTimer] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [palette, setPalette] = useState(false);
   const [finished, setFinished] = useState(false);
-  const [deadline, setDeadline] = useState<number | null>(null);
-  const [now, setNow] = useState<number>(() => Date.now());
+  const [secLeft, setSecLeft] = useState<number | null>(null);
 
   const moduleObj = test.modules[mi];
   const q = moduleObj.questions[qi];
   const isMath = moduleObj.section === "math";
   const key = answerKey(moduleObj.id, q.n);
   const total = moduleObj.questions.length;
+  const answeredCount = moduleObj.questions.filter((qq) => answers[answerKey(moduleObj.id, qq.n)]).length;
 
   useEffect(() => {
-    if (mode === "timed") setDeadline(Date.now() + moduleObj.minutes * 60000);
-    else setDeadline(null);
+    if (mode === "timed") setSecLeft(moduleObj.minutes * 60);
+    else setSecLeft(null);
     setCalcOpen(false);
+    setRefOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mi, mode]);
 
-  useEffect(() => {
-    if (deadline == null || finished) return;
-    const t = setInterval(() => setNow(Date.now()), 500);
-    return () => clearInterval(t);
-  }, [deadline, finished]);
-
-  const remaining = deadline ? Math.max(0, Math.round((deadline - now) / 1000)) : null;
-
   function advanceModule() {
-    if (mi < test.modules.length - 1) {
-      setMi(mi + 1);
-      setQi(0);
-    } else {
-      setFinished(true);
-    }
+    if (mi < test.modules.length - 1) { setMi(mi + 1); setQi(0); }
+    else setFinished(true);
   }
 
   useEffect(() => {
-    if (deadline != null && remaining === 0 && !finished) advanceModule();
+    if (mode !== "timed" || paused || finished || secLeft == null) return;
+    if (secLeft <= 0) { advanceModule(); return; }
+    const t = setTimeout(() => setSecLeft((s) => (s == null ? null : s - 1)), 1000);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remaining]);
+  }, [mode, paused, finished, secLeft]);
 
-  function select(letter: string) {
-    if (elim[key]?.[letter]) return;
-    setAnswers((a) => ({ ...a, [key]: letter }));
-  }
-  function setSpr(v: string) {
-    setAnswers((a) => ({ ...a, [key]: v }));
-  }
+  function select(letter: string) { if (elim[key]?.[letter]) return; setAnswers((a) => ({ ...a, [key]: letter })); }
+  function setSpr(v: string) { setAnswers((a) => ({ ...a, [key]: v })); }
   function toggleElim(letter: string) {
-    setElim((e) => {
-      const cur = { ...(e[key] || {}) };
-      cur[letter] = !cur[letter];
-      return { ...e, [key]: cur };
-    });
+    setElim((e) => { const cur = { ...(e[key] || {}) }; cur[letter] = !cur[letter]; return { ...e, [key]: cur }; });
     if (answers[key] === letter) setAnswers((a) => ({ ...a, [key]: "" }));
   }
-  function toggleMark() {
-    setMarked((m) => ({ ...m, [key]: !m[key] }));
-  }
-  function next() {
-    if (qi < total - 1) setQi(qi + 1);
-    else advanceModule();
-  }
-  function back() {
-    if (qi > 0) setQi(qi - 1);
-  }
+  function toggleMark() { setMarked((m) => ({ ...m, [key]: !m[key] })); }
+  function next() { if (qi < total - 1) setQi(qi + 1); else advanceModule(); }
+  function back() { if (qi > 0) setQi(qi - 1); }
 
-  if (mode === null)
-    return <StartModal test={test} onPick={setMode} onExit={() => router.push("/dashboard/practice")} />;
-
-  if (finished)
-    return (
-      <ScoreReport
-        test={test}
-        answers={answers}
-        onRetake={() => {
-          setAnswers({});
-          setMarked({});
-          setElim({});
-          setFinished(false);
-          setMi(0);
-          setQi(0);
-          setMode(null);
-        }}
-        onExit={() => router.push("/dashboard/practice")}
-      />
-    );
+  if (mode === null) return <StartModal test={test} onPick={setMode} onExit={() => router.push("/dashboard/practice")} />;
+  if (finished) return <ScoreReport test={test} answers={answers} onRetake={() => { setAnswers({}); setMarked({}); setElim({}); setFinished(false); setMi(0); setQi(0); setMode(null); }} onExit={() => router.push("/dashboard/practice")} />;
 
   const lastOfTest = mi === test.modules.length - 1 && qi === total - 1;
-  const card = (
-    <QuestionCard
-      q={q}
-      selected={answers[key]}
-      elim={elim[key]}
-      marked={!!marked[key]}
-      onSelect={select}
-      onSpr={setSpr}
-      onElim={toggleElim}
-      onMark={toggleMark}
-    />
-  );
+  const card = (<QuestionCard q={q} selected={answers[key]} elim={elim[key]} marked={!!marked[key]} onSelect={select} onSpr={setSpr} onElim={toggleElim} onMark={toggleMark} />);
 
   return (
-    <div className="exam flex min-h-dvh flex-col">
-      <header
-        className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 py-2.5"
-        style={{ borderColor: "var(--paper-line)", background: "rgba(246,244,239,0.92)", backdropFilter: "blur(8px)" }}
-      >
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{isMath ? "Section 2: Math" : "Section 1: Reading and Writing"}</p>
-          <p className="font-mono text-[0.58rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>{moduleObj.label}</p>
+    <div className="exam fixed inset-0 z-[80] flex flex-col">
+      <header className="relative flex items-center justify-between gap-3 border-b px-4 py-2.5" style={{ borderColor: "var(--paper-line)" }}>
+        <div className="flex items-center gap-4">
+          <button onClick={() => router.push("/dashboard/practice")} className="flex items-center gap-1.5 text-sm font-medium" style={{ color: "var(--carbon-2)" }}>
+            <ArrowLeft size={16} /> Go back
+          </button>
+          <button onClick={() => setDirOpen((d) => !d)} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--carbon-2)" }}>
+            Directions <ChevronDown size={14} />
+          </button>
         </div>
 
-        <div className="flex flex-col items-center">
-          {remaining != null ? (
+        <div className="absolute left-1/2 top-2 flex -translate-x-1/2 flex-col items-center">
+          {secLeft != null ? (
             <>
-              <span className={"font-display text-xl tabular-nums " + (remaining <= 300 ? "exam-timer-low" : "")}>{hideTimer ? "•••" : fmt(remaining)}</span>
-              <button onClick={() => setHideTimer((h) => !h)} className="flex items-center gap-1 font-mono text-[0.56rem] uppercase tracking-[0.16em]" style={{ color: "var(--carbon-3)" }}>
-                {hideTimer ? <Eye size={11} /> : <EyeOff size={11} />} {hideTimer ? "Show" : "Hide"}
-              </button>
+              <span className={"font-display text-2xl tabular-nums " + (secLeft <= 300 ? "exam-timer-low" : "")}>{hideTimer ? "•••••" : fmt(secLeft)}</span>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => setPaused((p) => !p)} className="grid h-5 w-5 place-items-center rounded-full border" style={{ borderColor: "var(--paper-line-2)", color: "var(--carbon-2)" }}>
+                  {paused ? <Play size={10} /> : <Pause size={10} />}
+                </button>
+                <button onClick={() => setHideTimer((h) => !h)} className="rounded-full border px-2.5 py-0.5 text-[0.7rem] font-medium" style={{ borderColor: "var(--paper-line-2)", color: "var(--carbon-2)" }}>
+                  {hideTimer ? "Show" : "Hide"}
+                </button>
+              </div>
             </>
           ) : (
-            <span className="flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[0.6rem] uppercase tracking-[0.16em]" style={{ borderColor: "var(--paper-line-2)", color: "var(--carbon-2)" }}>
-              <Clock size={11} /> Untimed
-            </span>
+            <span className="mt-1 flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[0.6rem] uppercase tracking-[0.14em]" style={{ borderColor: "var(--paper-line-2)", color: "var(--carbon-2)" }}><Clock size={11} /> Untimed</span>
           )}
         </div>
 
         <div className="flex items-center gap-1.5">
-          {isMath && (
-            <button onClick={() => setCalcOpen((c) => !c)} className={"exam-toolbtn " + (calcOpen ? "is-on" : "")} title="Calculator">
-              <CalcIcon size={16} /> <span className="hidden sm:inline">Calculator</span>
-            </button>
+          <ToolBtn onClick={() => setHighlight((h) => !h)} on={highlight} icon={<Highlighter size={16} />} label="Highlight" />
+          {isMath && <ToolBtn onClick={() => setCalcOpen((c) => !c)} on={calcOpen} icon={<CalcIcon size={16} />} label="Calculator" />}
+          {isMath && <ToolBtn onClick={() => setRefOpen((r) => !r)} on={refOpen} icon={<FileText size={16} />} label="Reference" />}
+          <span className="ml-1 flex items-center gap-1.5 rounded-full border px-2.5 py-1" style={{ borderColor: "var(--paper-line-2)" }}>
+            <span className="flex items-center gap-1 text-sm font-bold" style={{ color: "var(--ember)" }}><Flame size={14} /> {answeredCount}</span>
+            <span className="h-3 w-px" style={{ background: "var(--paper-line-2)" }} />
+            <span className="flex items-center gap-1 text-sm font-bold" style={{ color: "var(--carbon)" }}><Gem size={13} /> {total}</span>
+          </span>
+          {!durden && (
+            <button onClick={() => setDurden(true)} className="exam-toolbtn is-ember ml-1" title="Durden AI"><Flame size={16} /> <span className="hidden sm:inline">Durden AI</span></button>
           )}
-          <button onClick={() => setHighlight((h) => !h)} className={"exam-toolbtn " + (highlight ? "is-on" : "")} title="Highlights & Notes">
-            <Highlighter size={16} /> <span className="hidden md:inline">Highlights</span>
-          </button>
-          <button onClick={() => setDurden(true)} className="exam-toolbtn is-ember" title="Durden AI">
-            <Flame size={16} /> <span className="hidden sm:inline">Durden AI</span>
-          </button>
         </div>
-      </header>
 
-      <main className={"relative flex-1 " + (highlight ? "exam-hl-on" : "")}>
-        {isMath ? (
-          <div className={"mx-auto grid h-full max-w-6xl " + (calcOpen ? "lg:grid-cols-2" : "")}>
-            <div className="flex items-start justify-center px-5 py-8 sm:px-10">
-              <div className={"w-full " + (calcOpen ? "max-w-xl" : "max-w-2xl")}>{card}</div>
+        <AnimatePresence>
+          {dirOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setDirOpen(false)} />
+              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="exam-card absolute left-24 top-14 z-20 w-[min(92vw,420px)] p-5 text-sm" style={{ color: "var(--carbon-2)" }}>
+                <p className="serif mb-2 text-base font-bold" style={{ color: "var(--carbon)" }}>Directions</p>
+                {isMath
+                  ? "Solve each problem and choose the best answer, or type your student-produced response. A calculator is allowed on every question."
+                  : "Read each passage and question, then choose the best answer based on the passage(s). Each question has one best answer."}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </header>
+      <div className={"flex min-h-0 flex-1 " + (highlight ? "exam-hl-on" : "")}>
+        <div className="min-w-0 flex-1">
+          {isMath ? (
+            <div className="exam-watermark relative h-full overflow-y-auto">
+              <div className="mx-auto max-w-2xl px-6 py-8">{card}</div>
             </div>
-            {calcOpen && (
-              <div className="border-l px-4 py-6" style={{ borderColor: "var(--paper-line)" }}>
-                <DesmosCalculator height={520} />
-                <p className="mt-2 text-center font-mono text-[0.58rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>Desmos &middot; same engine as test day</p>
+          ) : (
+            <div className="grid h-full md:grid-cols-2">
+              <div className="exam-prose serif overflow-y-auto border-r px-6 py-8 text-[1.04rem] leading-relaxed" style={{ borderColor: "var(--paper-line)" }} dangerouslySetInnerHTML={{ __html: q.passageHtml || "" }} />
+              <div className="exam-watermark relative overflow-y-auto px-6 py-8">
+                <div className="relative z-10 mx-auto max-w-xl">{card}</div>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="mx-auto grid h-full max-w-6xl md:grid-cols-2">
-            <div
-              className="exam-prose serif overflow-y-auto border-r px-5 py-8 text-[1.02rem] leading-relaxed sm:px-8"
-              style={{ borderColor: "var(--paper-line)" }}
-              dangerouslySetInnerHTML={{ __html: q.passageHtml || "" }}
-            />
-            <div className="exam-watermark relative overflow-y-auto px-5 py-8 sm:px-8">
-              <div className="relative z-10 mx-auto max-w-xl">{card}</div>
             </div>
+          )}
+        </div>
+        {durden && (
+          <div className="hidden w-[360px] shrink-0 md:block">
+            <DurdenPanel q={q} section={isMath ? "Math" : "Reading & Writing"} onClose={() => setDurden(false)} />
           </div>
         )}
-      </main>
+      </div>
 
-      <footer className="sticky bottom-0 z-30 flex items-center justify-between border-t px-4 py-3" style={{ borderColor: "var(--paper-line)", background: "var(--paper)" }}>
+      <footer className="flex items-center justify-between border-t px-4 py-3" style={{ borderColor: "var(--paper-line)" }}>
         <button onClick={() => setPalette((p) => !p)} className="exam-btn exam-btn-primary px-4 py-2.5 text-[0.8rem]">
-          Question {qi + 1} of {total} <ChevronUp size={14} className={palette ? "rotate-180 transition-transform" : "transition-transform"} />
+          Question {qi + 1} of {total} <ChevronDown size={14} className={palette ? "rotate-180 transition-transform" : "transition-transform"} />
         </button>
+        <div className="hidden items-center sm:flex">
+          <button onClick={() => setDurden(true)} className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white" style={{ background: "var(--ember)" }}><Flame size={15} /> Ask Durden</button>
+        </div>
         <div className="flex items-center gap-2">
           <button onClick={back} disabled={qi === 0} className="exam-btn exam-btn-ghost px-5 py-2.5 disabled:opacity-40"><ArrowLeft size={15} /> Back</button>
           <button onClick={next} className="exam-btn exam-btn-ember px-6 py-2.5">{lastOfTest ? "Finish" : "Next"} <ArrowRight size={15} /></button>
@@ -224,10 +205,46 @@ export function ExamRunner({ test }: { test: ExamTest }) {
       </footer>
 
       <AnimatePresence>
+        {paused && secLeft != null && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[90] grid place-items-center" style={{ background: "rgba(20,19,15,0.55)", backdropFilter: "blur(4px)" }}>
+            <div className="exam-card p-8 text-center">
+              <p className="serif text-2xl font-bold">Paused.</p>
+              <p className="mt-1 text-sm" style={{ color: "var(--carbon-2)" }}>The clock&rsquo;s waiting. So is the score.</p>
+              <button onClick={() => setPaused(false)} className="exam-btn exam-btn-ember mt-5"><Play size={15} /> Resume</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {calcOpen && isMath && (
+          <motion.div drag dragMomentum={false} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="exam-card fixed left-6 top-20 z-[85] w-[min(92vw,460px)] overflow-hidden p-0">
+            <div className="flex cursor-grab items-center justify-between border-b px-3 py-2" style={{ borderColor: "var(--paper-line)" }}>
+              <span className="font-mono text-[0.62rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>Desmos &middot; drag me</span>
+              <button onClick={() => setCalcOpen(false)} style={{ color: "var(--carbon-3)" }}><X size={15} /></button>
+            </div>
+            <DesmosCalculator height={380} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {refOpen && isMath && (
+          <motion.div drag dragMomentum={false} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="exam-card fixed right-6 top-20 z-[85] w-[min(92vw,320px)] p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-mono text-[0.62rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>Reference</span>
+              <button onClick={() => setRefOpen(false)} style={{ color: "var(--carbon-3)" }}><X size={15} /></button>
+            </div>
+            <ul className="serif flex flex-col gap-1.5 text-[0.92rem]">{REFERENCE.map((r) => <li key={r}>{r}</li>)}</ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {palette && (
           <>
-            <div onClick={() => setPalette(false)} className="fixed inset-0 z-30" />
-            <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }} className="exam-card fixed bottom-[68px] left-1/2 z-40 w-[min(92vw,560px)] -translate-x-1/2 p-5">
+            <div onClick={() => setPalette(false)} className="fixed inset-0 z-[40]" />
+            <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }} className="exam-card fixed bottom-[64px] left-4 z-[50] w-[min(92vw,560px)] p-5">
               <div className="mb-3 flex items-center justify-between">
                 <p className="font-semibold">{moduleObj.label}</p>
                 <button onClick={() => setPalette(false)} style={{ color: "var(--carbon-3)" }}><X size={16} /></button>
@@ -245,22 +262,22 @@ export function ExamRunner({ test }: { test: ExamTest }) {
                   );
                 })}
               </div>
-              <div className="mt-4 flex flex-wrap gap-4 font-mono text-[0.58rem] uppercase tracking-[0.14em]" style={{ color: "var(--carbon-3)" }}>
-                <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded" style={{ background: "var(--carbon)" }} /> Answered</span>
-                <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded border" style={{ borderColor: "var(--paper-line-2)" }} /> Unanswered</span>
-                <span className="flex items-center gap-1"><Bookmark size={11} style={{ color: "var(--ember)" }} /> Marked</span>
-              </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
-
-      <AnimatePresence>
-        {durden && <DurdenPanel q={q} section={isMath ? "Math" : "Reading & Writing"} onClose={() => setDurden(false)} />}
-      </AnimatePresence>
     </div>
   );
 }
+function ToolBtn({ onClick, on, icon, label }: { onClick: () => void; on: boolean; icon: React.ReactNode; label: string }) {
+  return (
+    <button onClick={onClick} className="flex flex-col items-center gap-0.5 rounded-lg px-2 py-1 transition-colors" style={{ color: on ? "var(--ember)" : "var(--carbon-2)" }} title={label}>
+      {icon}
+      <span className="text-[0.6rem] font-medium">{label}</span>
+    </button>
+  );
+}
+
 function QuestionCard({
   q,
   selected,
@@ -282,14 +299,20 @@ function QuestionCard({
 }) {
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--paper-line)" }}>
-        <span className="grid h-8 w-8 place-items-center rounded-md text-sm font-bold text-white" style={{ background: "var(--carbon)" }}>{q.n}</span>
-        <button onClick={onMark} className="flex items-center gap-1.5 text-sm font-medium" style={{ color: marked ? "var(--ember)" : "var(--carbon-2)" }}>
-          {marked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />} Mark for Review
-        </button>
+      <div className="mb-5 flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "#f1eee6" }}>
+        <div className="flex items-center gap-3">
+          <span className="grid h-7 w-7 place-items-center rounded text-sm font-bold text-white" style={{ background: "var(--carbon)" }}>{q.n}</span>
+          <button onClick={onMark} className="flex items-center gap-1.5 text-sm font-medium" style={{ color: marked ? "var(--ember)" : "var(--carbon-2)" }}>
+            {marked ? <BookmarkCheck size={15} /> : <Bookmark size={15} />} Mark for Review
+          </button>
+        </div>
+        <div className="flex items-center gap-3" style={{ color: "var(--carbon-3)" }}>
+          <button title="Notes" className="transition-colors hover:text-[var(--carbon)]"><StickyNote size={15} /></button>
+          <button title="Report a problem" className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--ember)]"><Flag size={13} /> Report</button>
+        </div>
       </div>
 
-      <div className="exam-prose serif mb-5 text-[1.05rem] leading-relaxed" dangerouslySetInnerHTML={{ __html: q.stemHtml }} />
+      <div className="exam-prose serif mb-5 text-[1.06rem] leading-relaxed" dangerouslySetInnerHTML={{ __html: q.stemHtml }} />
 
       {q.type === "spr" ? (
         <div>
@@ -335,12 +358,12 @@ function StartModal({
 }) {
   const mins = test.modules.reduce((s, m) => s + m.minutes, 0);
   return (
-    <div className="exam grid min-h-dvh place-items-center px-5">
+    <div className="exam fixed inset-0 z-[80] grid place-items-center overflow-y-auto px-5 py-10">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="exam-card w-full max-w-lg p-8 text-center">
         <p className="font-mono text-[0.62rem] uppercase tracking-[0.24em]" style={{ color: "var(--carbon-3)" }}>Study Club &middot; The arena</p>
         <h1 className="serif mt-2 text-4xl font-bold">{test.title}</h1>
         <p className="mt-3 text-sm" style={{ color: "var(--carbon-2)" }}>
-          How do you want to take it? You can&rsquo;t serve two masters &mdash; pick one.
+          Two ways in. One clock, or none. Choose how you train &mdash; then own it.
         </p>
         <div className="mt-7 grid gap-3 sm:grid-cols-2">
           <button onClick={() => onPick("timed")} className="rounded-2xl border-2 p-5 text-left transition-colors hover:border-[var(--ember)]" style={{ borderColor: "var(--paper-line-2)" }}>
@@ -351,7 +374,7 @@ function StartModal({
           <button onClick={() => onPick("untimed")} className="rounded-2xl border-2 p-5 text-left transition-colors hover:border-[var(--carbon)]" style={{ borderColor: "var(--paper-line-2)" }}>
             <InfinityIcon size={22} style={{ color: "var(--carbon)" }} />
             <p className="serif mt-3 text-xl font-bold">Untimed</p>
-            <p className="mt-1 text-sm" style={{ color: "var(--carbon-2)" }}>No clock. Go slow. Analyze every move with Durden.</p>
+            <p className="mt-1 text-sm" style={{ color: "var(--carbon-2)" }}>No clock. Go slow. Take every question apart with Durden.</p>
           </button>
         </div>
         <button onClick={onExit} className="mt-6 font-mono text-[0.62rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>&larr; Back to Question Bank</button>

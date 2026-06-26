@@ -25,7 +25,7 @@ export function ScoreReport({
   const estimate = grade.sections.some((s) => !s.complete);
 
   return (
-    <div className="exam min-h-dvh px-5 py-10 sm:px-8">
+    <div className="exam fixed inset-0 z-[80] overflow-y-auto px-5 py-10 sm:px-8">
       <div className="mx-auto max-w-3xl">
         {/* certificate */}
         <motion.div

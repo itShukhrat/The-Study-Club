@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deepseekChat } from "@/lib/ai";
+import { deepseekChat, deepseekMessages } from "@/lib/ai";
 
 export const runtime = "nodejs";
 
@@ -14,31 +14,43 @@ const strip = (s: unknown) =>
     .replace(/&iacute;/g, "í")
     .replace(/&aacute;/g, "á")
     .replace(/&atilde;/g, "ã")
-    .replace(/&nbsp;|&#36;/g, " ")
+    .replace(/&#?\w+;/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 2200);
+    .slice(0, 2400);
 
-const VOICE = `You are DURDEN — the AI tutor inside Study Club, an SAT prep platform.
-Channel a sharp, no-excuses mentor: blunt, a little dangerous, zero hand-holding,
-but genuinely useful (the unflinching coach energy of a certain Fight Club character,
-without quoting the movie). Talk like a real person, second person, short sentences.
-You teach the student to think, not to memorize. No emoji, no corporate fluff.`;
+const DURDEN = `You are DURDEN — the AI tutor inside Study Club, an SAT app.
+Persona: a genuinely excellent SAT teacher with the swagger and bite of Tyler Durden
+(never quote or name the film). Sharp, fast, dry wit — a clever line here and there,
+never a clown. You make students THINK; you do not do their thinking for them.
+Hard rules:
+- During a LIVE question, never reveal or strongly imply the correct choice. If they
+  beg for "the answer" or "which letter," refuse with attitude and hand them the ONE
+  move that cracks it instead.
+- Stay on THIS question/passage and real SAT strategy. If they wander (jokes, life
+  advice, unrelated stuff), snap them back in a single line, then keep teaching.
+- No "As an AI," no disclaimers, no emoji, no corporate filler. Second person.
+- Tight by default (under ~80 words). If they say "walk me through it," go step by
+  step — but leave the final step for them.
+- You can see the passage, question, and choices you're handed. Use them.`;
 
-const FALLBACK_HINT =
-  "Durden's offline (no AI key). Strip the sentence to its bones: what is the blank/underline actually DOING? Cross out two choices that can't survive that job, then commit.";
-const FALLBACK_EXPLAIN =
-  "Durden's offline (no AI key). Re-read the question, eliminate two wrong choices first, then check exactly what made the right one right.";
+function ctxBlock(b: { section?: string; passage?: string; stem?: string; choices?: { id: string; text: string }[] }) {
+  const choices = (b.choices || []).map((c) => `${c.id}. ${strip(c.text)}`).join("\n");
+  return `SECTION: ${b.section || "Reading & Writing"}
+${b.passage ? `PASSAGE / CONTEXT:\n${strip(b.passage)}\n` : ""}QUESTION: ${strip(b.stem)}
+${choices ? `CHOICES:\n${choices}` : ""}`;
+}
 
 export async function POST(request: Request) {
   let body: {
-    mode?: "hint" | "explain";
+    mode?: "hint" | "explain" | "chat";
+    section?: string;
     passage?: string;
     stem?: string;
     choices?: { id: string; text: string }[];
     correct?: string;
     chosen?: string;
-    section?: string;
+    messages?: { role: "user" | "assistant"; content: string }[];
   };
   try {
     body = await request.json();
@@ -46,37 +58,46 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }
 
-  const mode = body.mode === "explain" ? "explain" : "hint";
-  const passage = strip(body.passage);
-  const stem = strip(body.stem);
-  const choices = (body.choices || [])
-    .map((c) => `${c.id}. ${strip(c.text)}`)
-    .join("\n");
+  const mode = body.mode || "hint";
 
-  const userCtx = `SECTION: ${body.section || "Reading & Writing"}
-${passage ? `PASSAGE / CONTEXT:\n${passage}\n` : ""}
-QUESTION: ${stem}
-${choices ? `CHOICES:\n${choices}` : ""}`;
-
-  let system: string;
-  if (mode === "hint") {
-    system = `${VOICE}
-The student is mid-test and wants a HINT. DO NOT reveal or even strongly imply the
-correct letter. In 2-3 short lines: name what the question is really testing, hand
-them ONE concrete move (e.g. predict before peeking, find the contrast word, test the
-pronoun's antecedent), and dare them to eliminate. Never give the answer.`;
-  } else {
-    system = `${VOICE}
-The test is over; give the full EXPLAIN. The correct answer is ${body.correct || "?"}.
-${body.chosen ? `The student chose ${body.chosen}.` : ""}
-In under 130 words: walk the actual reasoning to the right answer, then name the trap
-in the most tempting wrong choice. If they missed it, say what habit fixes it. End on
-one short line they'd remember. No headings, no markdown.`;
+  if (mode === "chat") {
+    const history = (body.messages || [])
+      .slice(-10)
+      .map((m) => ({ role: m.role, content: String(m.content).slice(0, 1200) }));
+    if (!history.length) return NextResponse.json({ text: "Ask me something about this question." });
+    const messages = [
+      { role: "system" as const, content: `${DURDEN}\n\nThe student is on this question (the answer key is hidden from you on purpose — coach, don't leak):\n${ctxBlock(body)}` },
+      ...history,
+    ];
+    const text = await deepseekMessages(messages, { maxTokens: 460, temperature: 0.65 });
+    return NextResponse.json({
+      text: text || "Durden's offline (no AI key / no balance). Strip the question to its job, kill two choices, commit.",
+      source: text ? "ai" : "fallback",
+    });
   }
 
-  const text = await deepseekChat({ system, user: userCtx, maxTokens: 420, temperature: mode === "hint" ? 0.6 : 0.4 });
-  if (!text) {
-    return NextResponse.json({ text: mode === "hint" ? FALLBACK_HINT : FALLBACK_EXPLAIN, source: "fallback" });
+  if (mode === "explain") {
+    const system = `${DURDEN}
+The test is OVER — full breakdown allowed. Correct answer: ${body.correct || "?"}.
+${body.chosen ? `Student chose ${body.chosen}.` : ""}
+Under 130 words: walk the real reasoning to the right answer, name the trap in the most
+tempting wrong choice, and if they missed it, the one habit that fixes it. End on a line
+they'd remember. No headings, no markdown.`;
+    const text = await deepseekChat({ system, user: ctxBlock(body), maxTokens: 520, temperature: 0.4 });
+    return NextResponse.json({
+      text: text || `The answer is ${body.correct}. Re-read the question, eliminate two wrong choices first, then check exactly what made the right one right.`,
+      source: text ? "ai" : "fallback",
+    });
   }
-  return NextResponse.json({ text, source: "ai" });
+
+  // hint
+  const system = `${DURDEN}
+The student is mid-test and wants a HINT. Do NOT reveal the letter. 2-3 short lines:
+name what this question really tests, hand them one concrete move, dare them to
+eliminate. Never the answer.`;
+  const text = await deepseekChat({ system, user: ctxBlock(body), maxTokens: 360, temperature: 0.6 });
+  return NextResponse.json({
+    text: text || "What is the blank/underline actually DOING in that sentence? Predict it in your own words first, then cross out the two choices that can't do that job.",
+    source: text ? "ai" : "fallback",
+  });
 }
