@@ -69,7 +69,7 @@ export function ExamLobby() {
           <span className="font-display text-5xl text-bone">~{RW.minutes + MATH.minutes}<span className="ml-1 font-sans text-base font-normal text-ash">min</span></span>
           <p className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-ash-2">98 questions · 4 modules</p>
         </div>
-        <Link href="/dashboard/practice/drill?mode=exam&track=rw&timed=1" className="btn btn-signal px-8 py-4 text-sm">
+        <Link href="/dashboard/practice/test/test-1" className="btn btn-signal px-8 py-4 text-sm">
           <Play size={16} /> Begin the exam
         </Link>
       </motion.div>

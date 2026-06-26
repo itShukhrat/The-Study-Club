@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
-import { ArrowLeft, ArrowRight, BookOpen, Sigma, Timer, Swords } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Sigma, Timer } from "lucide-react";
 import { RW, MATH } from "@/lib/sat-topics";
 
 const container: Variants = {
@@ -59,50 +59,27 @@ export function QuestionBankHub() {
 
         {/* Full exam — the main event */}
         <motion.div variants={item}>
-          <Link href="/dashboard/practice/exam" className="group block">
-            <div className="card card-hover relative overflow-hidden p-7 sm:p-9">
-              <div
-                className="pointer-events-none absolute inset-0 opacity-90"
-                style={{ background: "radial-gradient(90% 120% at 100% 0%, rgba(232,57,43,0.16), transparent 60%)" }}
-              />
-              {/* drawn route */}
-              <svg className="pointer-events-none absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                <motion.path
-                  d="M-2 80 C 24 78, 32 40, 52 40 S 80 12, 104 8"
-                  fill="none"
-                  stroke="var(--color-signal)"
-                  strokeWidth="0.3"
-                  opacity="0.35"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 2, ease: "easeInOut", delay: 0.4 }}
-                />
-              </svg>
-              <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-5">
-                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-signal/40 bg-signal/10 text-signal">
-                    <Swords size={26} strokeWidth={1.6} />
+          <Link href="/dashboard/practice/test/test-1" className="group block">
+            <div
+              className="relative overflow-hidden p-8 transition-transform duration-500 group-hover:-translate-y-1 sm:p-10"
+              style={{ borderRadius: "2.2rem", background: "linear-gradient(150deg,#f7e9e6,#efd9d6 55%,#e7cfd0)", boxShadow: "0 28px 70px -30px rgba(0,0,0,0.85), inset 0 2px 8px rgba(255,255,255,0.7), inset 0 -10px 24px rgba(170,120,120,0.35)" }}
+            >
+              <div className="pointer-events-none absolute inset-x-6 top-2 h-10 rounded-full" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.7), transparent)", filter: "blur(6px)" }} />
+              <span className="pointer-events-none absolute right-7 top-6 font-display text-5xl sm:text-6xl" style={{ color: "rgba(120,70,70,0.18)", textShadow: "0 1px 0 rgba(255,255,255,0.6)" }}>SC</span>
+              <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between" style={{ color: "#5b2b2b" }}>
+                <div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[0.6rem] uppercase tracking-[0.2em]" style={{ background: "rgba(120,40,40,0.12)", color: "#7a2d2d" }}>
+                    <Timer size={11} /> Full test &middot; soap-stamped
                   </span>
-                  <div>
-                    <span className="stamp inline-flex items-center gap-1.5 rounded px-2 py-1 font-mono text-[0.6rem] uppercase tracking-[0.2em] text-signal">
-                      <Timer size={11} /> Timed · both sections
-                    </span>
-                    <h2 className="mt-3 font-display text-4xl text-bone sm:text-5xl">The Full Exam</h2>
-                    <p className="mt-2 max-w-md text-sm text-ash">
-                      Reading &amp; Writing, then Math — real modules, real clock.
-                      This is the one that tells the truth.
-                    </p>
-                  </div>
+                  <h2 className="mt-3 font-display text-4xl sm:text-5xl" style={{ color: "#4a1f1f", textShadow: "0 1px 0 rgba(255,255,255,0.6)" }}>SAT Practice Test #1</h2>
+                  <p className="mt-2 max-w-md text-sm" style={{ color: "#7a4a48" }}>
+                    The first bar off the line. Reading &amp; Writing is live; Math is loading.
+                    Timed or untimed &mdash; you choose at the door.
+                  </p>
                 </div>
-                <div className="flex items-center gap-6 sm:flex-col sm:items-end sm:gap-1">
-                  <span className="font-display text-4xl text-bone">
-                    ~{RW.minutes + MATH.minutes}
-                    <span className="ml-1 font-sans text-sm font-normal text-ash">min</span>
-                  </span>
-                  <span className="btn btn-signal mt-0 px-5 py-3 text-[0.72rem] sm:mt-3">
-                    Sit the exam <ArrowRight size={15} />
-                  </span>
-                </div>
+                <span className="btn px-5 py-3 text-[0.72rem]" style={{ background: "#7a2d2d", color: "#f7e9e6", borderRadius: "0.7rem" }}>
+                  Take the test <ArrowRight size={15} />
+                </span>
               </div>
             </div>
           </Link>
