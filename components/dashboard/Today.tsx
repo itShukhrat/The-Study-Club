@@ -12,7 +12,8 @@ import {
   Play,
   Lock,
 } from "lucide-react";
-import { loadOnboarding, type OnboardingData } from "@/lib/onboarding";
+import { loadOnboarding, saveOnboarding, type OnboardingData } from "@/lib/onboarding";
+import { fetchProfile } from "@/lib/profile";
 import { MOTTOS, FEARS } from "@/lib/brand";
 import { daysUntil, seededPick } from "@/lib/utils";
 
@@ -34,7 +35,16 @@ export function Today() {
   const [data, setData] = useState<OnboardingData | null>(null);
 
   useEffect(() => {
-    setData(loadOnboarding());
+    const local = loadOnboarding();
+    setData(local);
+    // If signed in, let the saved Supabase profile win so we remember them.
+    fetchProfile().then((p) => {
+      if (p) {
+        const merged = { ...local, ...p };
+        setData(merged);
+        saveOnboarding(merged);
+      }
+    });
   }, []);
 
   const greeting = useMemo(() => {

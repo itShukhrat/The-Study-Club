@@ -9,7 +9,7 @@ import { createServerClient } from "@supabase/ssr";
  */
 
 const PROTECTED = ["/dashboard"];
-const AUTH_ROUTES = ["/enter"];
+const AUTH_ROUTES = ["/enter", "/login"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

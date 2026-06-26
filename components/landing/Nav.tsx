@@ -53,7 +53,7 @@ export function Nav() {
 
         <div className="flex items-center gap-2">
           <Link
-            href="/enter"
+            href="/login"
             className="hidden font-mono text-[0.72rem] uppercase tracking-[0.18em] text-bone-dim transition-colors hover:text-bone sm:block"
           >
             Sign in
