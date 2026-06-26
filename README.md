@@ -17,7 +17,8 @@ the platform that draws it.
 - **Tailwind v4** for styling (design tokens in `app/globals.css`)
 - **Framer Motion** for motion and micro-interactions
 - **Supabase** (Postgres + Auth) — email-code + Google, persistent sessions
-- **Anthropic API** (`claude-opus-4-8`) for the AI coach (optional)
+- **DeepSeek** for the AI coach + question explanations
+- **Desmos** graphing calculator in the practice room
 
 ## Run it
 
@@ -49,10 +50,13 @@ Onboarding accepts any 6-digit code and the dashboard reads your route from
 Once the env vars are present, the door at `/enter` creates real accounts and
 `/dashboard` becomes a protected route (guarded in `proxy.ts`).
 
-## Optional: the AI coach
+## AI (DeepSeek) + Desmos
 
-Add `ANTHROPIC_API_KEY` to `.env.local`. Without it, the coach (`/api/coach`)
-returns hand-written fallback lines, so the UI works either way.
+- **DeepSeek** powers the coach (`/api/coach`) and question explanations
+  (`/api/explain`). Add `DEEPSEEK_API_KEY` to `.env.local`. Without it, both
+  fall back to hand-written lines, so the UI always works.
+- **Desmos** runs in the practice room (`/dashboard/practice`). The public demo
+  key works out of the box; set `NEXT_PUBLIC_DESMOS_API_KEY` for your own.
 
 ## Structure
 
