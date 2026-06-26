@@ -88,7 +88,8 @@ export function OnboardingFlow({ next = "/dashboard" }: { next?: string }) {
 
   function finish() {
     update({ agreedToRules: true });
-    router.push(next);
+    // Full navigation so the freshly-set auth cookie is seen by the proxy.
+    window.location.assign(next);
   }
 
   return (
@@ -138,11 +139,11 @@ export function OnboardingFlow({ next = "/dashboard" }: { next?: string }) {
       {step < 7 && (
         <div className="mx-auto w-full max-w-xl">
           <button
-            onClick={() => (step === 6 ? finish() : go(step + 1))}
+            onClick={() => go(step + 1)}
             disabled={!canContinue}
             className="btn btn-signal w-full disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {step === 6 ? "I'm in" : "Continue"} <ArrowRight size={16} />
+            {step === 6 ? "Agree & continue" : "Continue"} <ArrowRight size={16} />
           </button>
         </div>
       )}

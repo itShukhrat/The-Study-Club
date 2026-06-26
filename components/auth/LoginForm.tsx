@@ -8,7 +8,8 @@ import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { hasSupabaseEnv, createClient } from "@/lib/supabase/client";
 import { scorePassword } from "@/lib/password";
-import { EmailField, PasswordField, CodeInput, GoogleButton, Divider } from "@/components/auth/fields";
+import { EmailField, PasswordField, CodeInput } from "@/components/auth/fields";
+import { GoogleAuth } from "@/components/auth/GoogleAuth";
 
 type Mode = "login" | "forgot-email" | "forgot-code" | "forgot-reset";
 
@@ -44,15 +45,6 @@ export function LoginForm({ next = "/dashboard" }: { next?: string }) {
     } catch (e) {
       fail(e, "Couldn't sign you in.");
     }
-  }
-
-  function google() {
-    if (preview) return router.push(next);
-    const supabase = createClient();
-    void supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
-    });
   }
 
   async function sendReset() {
@@ -151,8 +143,7 @@ export function LoginForm({ next = "/dashboard" }: { next?: string }) {
           >
             {mode === "login" && (
               <>
-                <GoogleButton onClick={google} label="Continue with Google" />
-                <Divider />
+                <GoogleAuth next={next} onPreview={() => router.push(next)} />
                 <EmailField value={email} onChange={setEmail} autoFocus />
                 <PasswordField value={password} onChange={setPassword} onEnter={signIn} />
                 <button onClick={signIn} disabled={loading} className="btn btn-signal w-full disabled:opacity-60">

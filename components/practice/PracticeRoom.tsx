@@ -54,7 +54,15 @@ const QUESTIONS: Q[] = [
   },
 ];
 
-export function PracticeRoom() {
+export function PracticeRoom({
+  backHref = "/dashboard",
+  backLabel = "Today",
+  contextLabel = "Warm-up drill",
+}: {
+  backHref?: string;
+  backLabel?: string;
+  contextLabel?: string;
+} = {}) {
   const [i, setI] = useState(0);
   const [chosen, setChosen] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
@@ -104,10 +112,10 @@ export function PracticeRoom() {
     <div className="flex flex-col">
       <div className="mb-8 flex items-center justify-between">
         <Link
-          href="/dashboard"
+          href={backHref}
           className="flex items-center gap-1.5 font-mono text-[0.7rem] uppercase tracking-[0.18em] text-ash transition-colors hover:text-bone"
         >
-          <ArrowLeft size={14} /> Today
+          <ArrowLeft size={14} /> {backLabel}
         </Link>
         <button
           onClick={() => setCalcOpen((v) => !v)}
@@ -121,7 +129,7 @@ export function PracticeRoom() {
       </div>
 
       <div className="mb-2 flex items-center gap-3">
-        <span className="kicker">Warm-up drill</span>
+        <span className="kicker">{contextLabel}</span>
         <span className="font-mono text-[0.7rem] tracking-[0.2em] text-ash-2">
           {i + 1} / {QUESTIONS.length}
         </span>

@@ -7,7 +7,8 @@ import { ArrowRight, Loader2 } from "lucide-react";
 import { hasSupabaseEnv, createClient } from "@/lib/supabase/client";
 import { scorePassword } from "@/lib/password";
 import type { OnboardingData } from "@/lib/onboarding";
-import { EmailField, PasswordField, CodeInput, GoogleButton, Divider } from "@/components/auth/fields";
+import { EmailField, PasswordField, CodeInput } from "@/components/auth/fields";
+import { GoogleAuth } from "@/components/auth/GoogleAuth";
 
 type Phase = "form" | "code";
 
@@ -99,21 +100,11 @@ export function AuthStep({
     }
   }
 
-  function google() {
-    if (preview) return onComplete();
-    const supabase = createClient();
-    void supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=/dashboard` },
-    });
-  }
-
   return (
     <div className="flex flex-col gap-5">
       {phase === "form" ? (
         <>
-          <GoogleButton onClick={google} label="Continue with Google" />
-          <Divider />
+          <GoogleAuth next="/dashboard" onPreview={onComplete} />
           <EmailField value={email} onChange={setEmail} />
           <PasswordField
             value={password}

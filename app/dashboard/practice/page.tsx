@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { PracticeRoom } from "@/components/practice/PracticeRoom";
+import { QuestionBankHub } from "@/components/practice/QuestionBankHub";
 
-export const metadata: Metadata = { title: "Practice" };
+export const metadata: Metadata = { title: "Question Bank" };
 
 export default function PracticePage() {
-  return <PracticeRoom />;
+  return <QuestionBankHub />;
 }
