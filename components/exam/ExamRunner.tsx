@@ -109,7 +109,16 @@ export function ExamRunner({ test }: { test: ExamTest }) {
   if (finished) return <ScoreReport test={test} answers={answers} onRetake={() => { setAnswers({}); setMarked({}); setElim({}); setFinished(false); setMi(0); setQi(0); setMode(null); }} onExit={() => router.push("/dashboard/practice")} />;
 
   const lastOfTest = mi === test.modules.length - 1 && qi === total - 1;
-  const card = (<QuestionCard q={q} selected={answers[key]} elim={elim[key]} marked={!!marked[key]} onSelect={select} onSpr={setSpr} onElim={toggleElim} onMark={toggleMark} />);
+  const card = (
+    <motion.div
+      key={`${mi}-${qi}`}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <QuestionCard q={q} selected={answers[key]} elim={elim[key]} marked={!!marked[key]} onSelect={select} onSpr={setSpr} onElim={toggleElim} onMark={toggleMark} />
+    </motion.div>
+  );
 
   return (
     <div className="exam fixed inset-0 z-[80] flex flex-col">
