@@ -1,0 +1,36 @@
+{
+  "$schema": "study-club/question-state@1",
+  "examSession": {
+    "testId": "test-1",
+    "kind": "mock",
+    "mode": "timed | untimed | null(pre-test)",
+    "mi": "active module index (0..3)",
+    "qi": "active question index within module",
+    "finished": "boolean -> POST_TEST_REVIEW"
+  },
+  "perModule": {
+    "id": "t1-rw-m1 | t1-rw-m2 | t1-math-m1 | t1-math-m2",
+    "section": "rw | math",
+    "minutes": "32 (rw) | 35 (math)",
+    "secLeft": "remaining seconds (timed) | null (untimed)",
+    "paused": "boolean"
+  },
+  "perQuestion": {
+    "key": "`${moduleId}:${n}`  (answerKey())",
+    "n": "1-based number",
+    "domain": "e.g. Algebra | Information and Ideas",
+    "skill": "e.g. Transitions | Nonlinear functions",
+    "type": "mcq | spr",
+    "selected": "chosen choice id (A-D) or grid-in string",
+    "flagged": "marked for review (boolean)",
+    "eliminated": "set of crossed-out choice ids"
+  },
+  "answerMap": "Record<questionKey, selectedValue>  (the autosave surface)",
+  "grading": {
+    "rwRaw": "0-66 (m1+m2 correct)",
+    "mathRaw": "0-54 (m1+m2 correct)",
+    "sectionScore": "200-800 via RW_TABLE / MATH_TABLE",
+    "total": "400-1600",
+    "domainStats": "per-domain correct/total -> weakDomains (<75%)"
+  }
+}

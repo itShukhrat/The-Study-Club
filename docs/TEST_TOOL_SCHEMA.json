@@ -1,0 +1,18 @@
+{
+  "$schema": "study-club/test-tool-schema@1",
+  "tools": {
+    "timer":        { "implemented": true,  "perModule": true, "actions": ["pause","resume","hide","show"], "autoAdvanceAtZero": true },
+    "navigator":    { "implemented": true,  "shows": ["answered","current","flagged"], "action": "jumpToQuestion" },
+    "markForReview":{ "implemented": true,  "perQuestion": true, "key": "flagged" },
+    "eliminator":   { "implemented": true,  "perChoice": true, "clearsSelectionIfEliminated": true },
+    "highlight":    { "implemented": true,  "scope": "passage+question selection", "sections": ["rw","math"] },
+    "calculator":   { "implemented": true,  "engine": "Desmos", "sections": ["math"], "draggable": true, "streamsExpressionsToDurden": "practice/review only" },
+    "reference":    { "implemented": true,  "sections": ["math"], "content": "SAT formula sheet (areas, circles, special right triangles, volumes, radians)" },
+    "notes":        { "implemented": "stub", "perQuestion": true },
+    "report":       { "implemented": "stub", "perQuestion": true },
+    "zoom":         { "implemented": false, "planned": true },
+    "lineReader":   { "implemented": false, "planned": true, "section": "rw" },
+    "autosave":     { "implemented": "in-memory", "planned": "persist to localStorage + Supabase for resume" }
+  },
+  "mockMode": { "durden": "off", "hints": "off", "explanations": "off", "gamification": "off" }
+}
