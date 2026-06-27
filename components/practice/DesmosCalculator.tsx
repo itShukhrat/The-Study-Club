@@ -37,7 +37,6 @@ function loadDesmos(): Promise<void> {
 
     script.addEventListener("load", () => {
       if (window.Desmos) resolve();
-      // if onload fired but the global isn't ready yet, the poll below catches it
     });
     script.addEventListener("error", () => fail("Desmos script failed (network or invalid API key -> 403)"));
 
@@ -68,22 +67,31 @@ function loadDesmos(): Promise<void> {
 
 export function DesmosCalculator({
   height = 420,
+  fill = false,
   kind = "graphing",
   onExpressions,
+  onReady,
 }: {
   height?: number;
+  /** when true, fill the parent (h/w 100%) instead of a fixed pixel height */
+  fill?: boolean;
   kind?: "graphing" | "scientific";
   onExpressions?: (latex: string[]) => void;
+  /** receives the live Desmos instance (for clear/undo/state controls) */
+  onReady?: (calc: any) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const calcRef = useRef<any>(null);
   const cbRef = useRef(onExpressions);
   cbRef.current = onExpressions;
+  const readyRef = useRef(onReady);
+  readyRef.current = onReady;
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let mounted = true;
+    let ro: ResizeObserver | null = null;
     setError(false);
     loadDesmos()
       .then(() => {
@@ -96,7 +104,23 @@ export function DesmosCalculator({
                 settingsMenu: false,
                 border: false,
                 keypad: true,
+                autosize: true,
               });
+        readyRef.current?.(calcRef.current);
+
+        // Desmos only auto-resizes on window resize; observe the container so it
+        // re-fits when the panel is dragged-resized, maximized, or the sheet opens.
+        if ("ResizeObserver" in window) {
+          ro = new ResizeObserver(() => {
+            try {
+              calcRef.current?.resize?.();
+            } catch {
+              /* noop */
+            }
+          });
+          ro.observe(ref.current);
+        }
+
         if (kind !== "scientific" && calcRef.current?.observeEvent) {
           calcRef.current.observeEvent("change", () => {
             try {
@@ -111,13 +135,17 @@ export function DesmosCalculator({
         }
       })
       .catch((err) => {
-        // Surface the real reason in the console for diagnosis.
         console.error("[Desmos]", err);
         if (mounted) setError(true);
       });
 
     return () => {
       mounted = false;
+      try {
+        ro?.disconnect();
+      } catch {
+        /* noop */
+      }
       try {
         calcRef.current?.destroy?.();
       } catch {
@@ -130,8 +158,8 @@ export function DesmosCalculator({
   if (error) {
     return (
       <div
-        className="grid place-items-center gap-3 rounded-2xl border bg-white p-6 text-center text-sm"
-        style={{ height, borderColor: "var(--paper-line-2, #e2ddd0)", color: "var(--carbon-2, #555)" }}
+        className="grid h-full place-items-center gap-3 rounded-2xl border bg-white p-6 text-center text-sm"
+        style={{ height: fill ? "100%" : height, borderColor: "var(--paper-line-2, #e2ddd0)", color: "var(--carbon-2, #555)" }}
       >
         <p>Couldn&apos;t load the calculator.</p>
         <button
@@ -148,8 +176,8 @@ export function DesmosCalculator({
   return (
     <div
       ref={ref}
-      className="overflow-hidden rounded-2xl border bg-white"
-      style={{ height, borderColor: "var(--paper-line-2, #e2ddd0)" }}
+      className={"bg-white " + (fill ? "h-full w-full" : "overflow-hidden rounded-2xl border")}
+      style={fill ? undefined : { height, borderColor: "var(--paper-line-2, #e2ddd0)" }}
       aria-label="Desmos graphing calculator"
     />
   );
