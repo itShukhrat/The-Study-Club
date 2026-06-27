@@ -18,7 +18,7 @@ export async function deepseekChat({
   maxTokens?: number;
   temperature?: number;
 }): Promise<string | null> {
-  const key = process.env.DEEPSEEK_API_KEY;
+  const key = process.env.DEEPSEEK_API_KEY?.trim();
   if (!key) return null;
 
   try {
@@ -62,7 +62,7 @@ export async function deepseekMessages(
   messages: { role: "system" | "user" | "assistant"; content: string }[],
   opts?: { maxTokens?: number; temperature?: number },
 ): Promise<string | null> {
-  const key = process.env.DEEPSEEK_API_KEY;
+  const key = process.env.DEEPSEEK_API_KEY?.trim();
   if (!key) return null;
   try {
     const res = await fetch("https://api.deepseek.com/chat/completions", {

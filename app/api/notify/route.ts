@@ -17,7 +17,7 @@ const esc = (s: unknown) =>
     .slice(0, 2000);
 
 export async function POST(request: Request) {
-  const key = process.env.RESEND_API_KEY;
+  const key = process.env.RESEND_API_KEY?.trim();
   const to = process.env.EMAIL_INTERNAL_TO || "contact@StudyClub.uz";
   const from = process.env.EMAIL_FROM || "Study Club <noreply@boostprofits.org>";
   if (!key) return NextResponse.json({ ok: false, reason: "no-resend" });

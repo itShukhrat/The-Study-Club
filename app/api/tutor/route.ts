@@ -58,21 +58,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }
 
-  if ((body as { diag?: boolean }).diag) {
-    const key = process.env.DEEPSEEK_API_KEY || "";
-    let probe = "no-key";
-    if (key) {
-      try {
-        const r = await fetch("https://api.deepseek.com/chat/completions", {
-          method: "POST",
-          headers: { authorization: `Bearer ${key.trim()}`, "content-type": "application/json" },
-          body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "user", content: "OK" }], max_tokens: 5 }),
-        });
-        probe = "status:" + r.status + (r.ok ? " OK" : " " + (await r.text()).slice(0, 160));
-      } catch (e) { probe = "throw:" + (e as Error).message; }
-    }
-    return NextResponse.json({ keyLen: key.length, firstCharCode: key.charCodeAt(0), probe });
-  }
   const mode = body.mode || "hint";
 
   if (mode === "chat") {
