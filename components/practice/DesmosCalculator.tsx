@@ -9,30 +9,60 @@ declare global {
   }
 }
 
-const API_KEY =
-  process.env.NEXT_PUBLIC_DESMOS_API_KEY || "dcb31709b452b1cf9dc26972add0fda6";
+// NEXT_PUBLIC_* is inlined at build time. .trim() strips a stray BOM/whitespace
+// (Vercel env values have shipped with a leading U+FEFF before, which made the
+// key truthy-but-invalid and 403'd the script); an empty value then falls back
+// to Desmos's public demo key.
+const RAW_KEY = process.env.NEXT_PUBLIC_DESMOS_API_KEY || "";
+const API_KEY = RAW_KEY.trim() || "dcb31709b452b1cf9dc26972add0fda6";
 const SRC = `https://www.desmos.com/api/v1.12/calculator.js?apiKey=${API_KEY}`;
 
 let loader: Promise<void> | null = null;
+
 function loadDesmos(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
   if (window.Desmos) return Promise.resolve();
   if (loader) return loader;
+
   loader = new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[data-desmos]`);
-    if (existing) {
-      existing.addEventListener("load", () => resolve());
-      existing.addEventListener("error", () => reject(new Error("desmos failed")));
-      return;
+    const fail = (msg: string) => {
+      // Drop the cached promise so a remount / retry can attempt a fresh load
+      // instead of inheriting a permanently-rejected singleton.
+      loader = null;
+      reject(new Error(msg));
+    };
+
+    const existing = document.querySelector<HTMLScriptElement>("script[data-desmos]");
+    const script = existing ?? document.createElement("script");
+
+    script.addEventListener("load", () => {
+      if (window.Desmos) resolve();
+      // if onload fired but the global isn't ready yet, the poll below catches it
+    });
+    script.addEventListener("error", () => fail("Desmos script failed (network or invalid API key -> 403)"));
+
+    if (!existing) {
+      script.src = SRC;
+      script.async = true;
+      script.dataset.desmos = "true";
+      document.head.appendChild(script);
     }
-    const s = document.createElement("script");
-    s.src = SRC;
-    s.async = true;
-    s.dataset.desmos = "true";
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("desmos failed"));
-    document.head.appendChild(s);
+
+    // Safety net: handles an already-loaded existing script (whose load event
+    // won't fire again) and any onload/global timing gap. Times out so a real
+    // failure surfaces the retry UI instead of hanging forever.
+    let waited = 0;
+    const poll = window.setInterval(() => {
+      if (window.Desmos) {
+        window.clearInterval(poll);
+        resolve();
+      } else if ((waited += 200) >= 15000) {
+        window.clearInterval(poll);
+        fail("Desmos did not initialize within 15s");
+      }
+    }, 200);
   });
+
   return loader;
 }
 
@@ -50,9 +80,11 @@ export function DesmosCalculator({
   const cbRef = useRef(onExpressions);
   cbRef.current = onExpressions;
   const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let mounted = true;
+    setError(false);
     loadDesmos()
       .then(() => {
         if (!mounted || !ref.current || !window.Desmos) return;
@@ -78,7 +110,11 @@ export function DesmosCalculator({
           });
         }
       })
-      .catch(() => mounted && setError(true));
+      .catch((err) => {
+        // Surface the real reason in the console for diagnosis.
+        console.error("[Desmos]", err);
+        if (mounted) setError(true);
+      });
 
     return () => {
       mounted = false;
@@ -87,16 +123,24 @@ export function DesmosCalculator({
       } catch {
         /* noop */
       }
+      calcRef.current = null;
     };
-  }, [kind]);
+  }, [kind, attempt]);
 
   if (error) {
     return (
       <div
-        className="grid place-items-center rounded-2xl border border-line bg-ink-1 text-sm text-ash"
-        style={{ height }}
+        className="grid place-items-center gap-3 rounded-2xl border bg-white p-6 text-center text-sm"
+        style={{ height, borderColor: "var(--paper-line-2, #e2ddd0)", color: "var(--carbon-2, #555)" }}
       >
-        Couldn&apos;t load the calculator. Check the network and the Desmos API key.
+        <p>Couldn&apos;t load the calculator.</p>
+        <button
+          onClick={() => setAttempt((a) => a + 1)}
+          className="rounded-full border px-4 py-1.5 text-xs font-semibold"
+          style={{ borderColor: "var(--paper-line-2, #ddd)", color: "var(--carbon, #222)" }}
+        >
+          Try again
+        </button>
       </div>
     );
   }
@@ -104,8 +148,8 @@ export function DesmosCalculator({
   return (
     <div
       ref={ref}
-      className="overflow-hidden rounded-2xl border border-line-2 bg-white"
-      style={{ height }}
+      className="overflow-hidden rounded-2xl border bg-white"
+      style={{ height, borderColor: "var(--paper-line-2, #e2ddd0)" }}
       aria-label="Desmos graphing calculator"
     />
   );
