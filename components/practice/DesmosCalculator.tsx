@@ -12,9 +12,9 @@ declare global {
 // NEXT_PUBLIC_* is inlined at build time. .trim() strips a stray BOM/whitespace
 // (Vercel env values have shipped with a leading U+FEFF before, which made the
 // key truthy-but-invalid and 403'd the script); an empty value then falls back
-// to Desmos's public demo key.
+// to the project's own Desmos key (public by design - domain-restricted on Desmos's side).
 const RAW_KEY = process.env.NEXT_PUBLIC_DESMOS_API_KEY || "";
-const API_KEY = RAW_KEY.trim() || "dcb31709b452b1cf9dc26972add0fda6";
+const API_KEY = RAW_KEY.trim() || "e49685ca70864caeb874348ec0bf1c88";
 const SRC = `https://www.desmos.com/api/v1.12/calculator.js?apiKey=${API_KEY}`;
 
 let loader: Promise<void> | null = null;
