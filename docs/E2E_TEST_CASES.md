@@ -13,6 +13,9 @@ Status legend: [PASS] verified, [OK] supported by design, [TODO] planned.
 - [OK] Per-module countdown; at 0:00 the module auto-advances; last module 0:00
   -> finished -> ScoreReport.
 - [OK] Pause freezes the clock; Hide masks digits without pausing.
+- [PASS] After R&W Module 2 the engine enters a 10-minute BREAK (phase="break",
+  600s countdown); "Start Math now" resumes early; at 0:00 it auto-advances to
+  Math Module 1. Mock start is a timed-only exam briefing (no "Untimed").
 - [TODO] Server-authoritative time (anti-tamper) for graded mocks.
 
 ## Flagged questions
@@ -30,11 +33,16 @@ Status legend: [PASS] verified, [OK] supported by design, [TODO] planned.
 - [OK] Selecting a choice / typing a grid-in updates the answerMap; eliminated
   choices can't be selected; question-to-question transition animates.
 
-## Resume from dropout  [TODO - highest-priority gap]
-- Current: answers live in React state; a hard refresh loses progress.
-- Planned: persist answerMap + mi/qi/secLeft to localStorage on every change
-  (and to Supabase for cross-device), with a "Resume test" prompt on return.
-  Schema is defined in QUESTION_STATE_SCHEMA.json.
+## Resume from dropout  [SHIPPED]
+- [PASS] lib/exam-session.ts autosaves the full snapshot (answers, marked, elim,
+  mi, qi, secLeft, phase, breakLeft) to localStorage `sc.exam.<testId>` on every
+  change. On return, ExamRunner shows a ResumeModal ("Module X - Question Y,
+  mm:ss left, N answered") with Resume / Start over. justResumed guards the
+  per-module clock so a resumed countdown is not reset to full.
+- [PASS] Mid-break dropout resumes onto the break with the break countdown intact.
+- [PASS] Sessions older than 3h are treated as expired and cleared on load.
+- [TODO] Supabase mirror for cross-device resume; server token for tamper-proof
+  time. Shapes in FULL_TEST_SESSION_SCHEMA.json / QUESTION_STATE_SCHEMA.json.
 
 ## Scoring correctness
 - [PASS] 120 questions, every one keyed (106 MCQ + 14 grid-in incl. the `2;-12`
