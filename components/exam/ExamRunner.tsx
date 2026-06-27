@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import type { ExamTest, AnswerMap, ExamQuestion } from "@/lib/exam";
 import { answerKey } from "@/lib/exam";
+import { loadProgress } from "@/lib/progress";
 import { DurdenPanel } from "./DurdenPanel";
 import { ScoreReport } from "./ScoreReport";
 import { DesmosCalculator } from "@/components/practice/DesmosCalculator";
@@ -66,12 +67,16 @@ export function ExamRunner({ test }: { test: ExamTest }) {
   const [palette, setPalette] = useState(false);
   const [finished, setFinished] = useState(false);
   const [secLeft, setSecLeft] = useState<number | null>(null);
+  const [weakDomains, setWeakDomains] = useState<string[]>([]);
+  const [desmosExprs, setDesmosExprs] = useState<string[]>([]);
+  useEffect(() => { setWeakDomains(loadProgress().weakDomains); }, []);
 
   const moduleObj = test.modules[mi];
   const q = moduleObj.questions[qi];
   const isMath = moduleObj.section === "math";
   const key = answerKey(moduleObj.id, q.n);
   const total = moduleObj.questions.length;
+  const isMock = test.kind === "mock";
   const answeredCount = moduleObj.questions.filter((qq) => answers[answerKey(moduleObj.id, qq.n)]).length;
 
   useEffect(() => {
@@ -159,7 +164,7 @@ export function ExamRunner({ test }: { test: ExamTest }) {
             <span className="h-3 w-px" style={{ background: "var(--paper-line-2)" }} />
             <span className="flex items-center gap-1 text-sm font-bold" style={{ color: "var(--carbon)" }}><Gem size={13} /> {total}</span>
           </span>
-          {!durden && (
+          {!durden && !isMock && (
             <button onClick={() => setDurden(true)} className="exam-toolbtn is-ember ml-1" title="Durden AI"><Flame size={16} /> <span className="hidden sm:inline">Durden AI</span></button>
           )}
         </div>
@@ -193,12 +198,12 @@ export function ExamRunner({ test }: { test: ExamTest }) {
             </div>
           )}
         </div>
-        {durden && (
+        {durden && !isMock && (
           <div className="hidden w-[360px] shrink-0 md:block">
             <DurdenPanel
               ctx={{
                 mode: "practice",
-                allowed: true,
+                allowed: !isMock,
                 section: isMath ? "Math" : "Reading & Writing",
                 questionType: q.skill || q.domain,
                 passageHtml: q.passageHtml,
@@ -207,6 +212,8 @@ export function ExamRunner({ test }: { test: ExamTest }) {
                 selected: answers[key],
                 isSpr: q.type === "spr",
                 desmosAvailable: isMath && calcOpen,
+                desmosState: isMath && calcOpen ? desmosExprs.join("; ") : undefined,
+                student: { weakDomains },
               }}
               onClose={() => setDurden(false)}
             />
@@ -219,7 +226,7 @@ export function ExamRunner({ test }: { test: ExamTest }) {
           Question {qi + 1} of {total} <ChevronDown size={14} className={palette ? "rotate-180 transition-transform" : "transition-transform"} />
         </button>
         <div className="hidden items-center sm:flex">
-          <button onClick={() => setDurden(true)} className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white" style={{ background: "var(--ember)" }}><Flame size={15} /> Ask Durden</button>
+          {!isMock && (<button onClick={() => setDurden(true)} className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white" style={{ background: "var(--ember)" }}><Flame size={15} /> Ask Durden</button>)}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={back} disabled={qi === 0} className="exam-btn exam-btn-ghost px-5 py-2.5 disabled:opacity-40"><ArrowLeft size={15} /> Back</button>
@@ -246,7 +253,7 @@ export function ExamRunner({ test }: { test: ExamTest }) {
               <span className="font-mono text-[0.62rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>Desmos &middot; drag me</span>
               <button onClick={() => setCalcOpen(false)} style={{ color: "var(--carbon-3)" }}><X size={15} /></button>
             </div>
-            <DesmosCalculator height={380} />
+            <DesmosCalculator height={380} onExpressions={setDesmosExprs} />
           </motion.div>
         )}
       </AnimatePresence>

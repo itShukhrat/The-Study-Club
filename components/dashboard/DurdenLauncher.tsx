@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Flame } from "lucide-react";
 import { DurdenPanel } from "@/components/exam/DurdenPanel";
 import { loadOnboarding } from "@/lib/onboarding";
+import { loadProgress } from "@/lib/progress";
 
 /**
  * Platform-mode Durden, available across the dashboard. Hidden on the exam
@@ -14,11 +15,12 @@ import { loadOnboarding } from "@/lib/onboarding";
 export function DurdenLauncher() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [student, setStudent] = useState<{ targetScore?: number; struggles?: string[] }>({});
+  const [student, setStudent] = useState<{ targetScore?: number; struggles?: string[]; weakDomains?: string[] }>({});
 
   useEffect(() => {
     const d = loadOnboarding();
-    if (d) setStudent({ targetScore: d.targetScore, struggles: d.struggles });
+    const p = loadProgress();
+    setStudent({ targetScore: d?.targetScore, struggles: d?.struggles, weakDomains: p.weakDomains });
   }, []);
 
   // never collide with the in-exam Durden

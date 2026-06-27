@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Loader2, Sparkles, Check, X, ArrowRight, RotateCcw } from "lucide-react";
+import { Loader2, Sparkles, Check, X, ArrowRight, RotateCcw, Target } from "lucide-react";
 import { gradeTest, isCorrect, type ExamTest, type AnswerMap, type ExamQuestion } from "@/lib/exam";
+import { saveTestResult, weakDomainsFrom } from "@/lib/progress";
 import { LogoMark } from "@/components/brand/Logo";
 
 function band(domains: { domain: string; correct: number; total: number }[]) {
@@ -23,6 +25,14 @@ export function ScoreReport({
 }) {
   const grade = gradeTest(test, answers);
   const estimate = grade.sections.some((s) => !s.complete);
+  const allWeak = weakDomainsFrom(grade.sections.flatMap((s) => s.domains));
+  const saved = useRef(false);
+  useEffect(() => {
+    if (saved.current) return;
+    saved.current = true;
+    saveTestResult({ total: grade.total, domains: grade.sections.flatMap((s) => s.domains) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="exam fixed inset-0 z-[80] overflow-y-auto px-5 py-10 sm:px-8">
@@ -102,9 +112,18 @@ export function ScoreReport({
                     );
                   })}
                   {weak.length > 0 && (
-                    <p className="mt-1 text-sm" style={{ color: "var(--carbon)" }}>
-                      Work on <strong style={{ color: "var(--ember)" }}>{weak.map((w) => w.domain).join(" and ")}</strong>. That&rsquo;s your fastest gain.
-                    </p>
+                    <div className="mt-1.5">
+                      <p className="text-sm" style={{ color: "var(--carbon)" }}>
+                        Work on <strong style={{ color: "var(--ember)" }}>{weak.map((w) => w.domain).join(" and ")}</strong>. That&rsquo;s your fastest gain.
+                      </p>
+                      <Link
+                        href={`/dashboard/practice/drill?track=${s.section}&mode=weak`}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.78rem] font-semibold text-white transition-transform hover:-translate-y-0.5"
+                        style={{ background: "var(--ember)" }}
+                      >
+                        <Target size={13} /> Drill {s.label} now
+                      </Link>
+                    </div>
                   )}
                 </div>
               );
@@ -119,7 +138,7 @@ export function ScoreReport({
           <div className="mt-4 flex flex-col gap-3">
             {test.modules.map((m) =>
               m.questions.map((q) => (
-                <ReviewRow key={`${m.id}:${q.n}`} q={q} answer={answers[`${m.id}:${q.n}`]} section={m.section === "rw" ? "Reading & Writing" : "Math"} />
+                <ReviewRow key={`${m.id}:${q.n}`} q={q} answer={answers[`${m.id}:${q.n}`]} section={m.section === "rw" ? "Reading & Writing" : "Math"} weakDomains={allWeak} />
               )),
             )}
           </div>
@@ -134,7 +153,7 @@ export function ScoreReport({
   );
 }
 
-function ReviewRow({ q, answer, section }: { q: ExamQuestion; answer?: string; section: string }) {
+function ReviewRow({ q, answer, section, weakDomains }: { q: ExamQuestion; answer?: string; section: string; weakDomains?: string[] }) {
   const ok = isCorrect(q, answer);
   const [open, setOpen] = useState(false);
   const [exp, setExp] = useState<string | null>(null);
@@ -148,7 +167,7 @@ function ReviewRow({ q, answer, section }: { q: ExamQuestion; answer?: string; s
       const res = await fetch("/api/tutor", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mode: "review", allowed: true, section, questionType: q.skill || q.domain, passageHtml: q.passageHtml, stemHtml: q.stemHtml, choices: q.choices, correct: q.correct, sprAnswers: q.sprAnswers, selected: answer }),
+        body: JSON.stringify({ mode: "review", allowed: true, section, questionType: q.skill || q.domain, passageHtml: q.passageHtml, stemHtml: q.stemHtml, choices: q.choices, correct: q.correct, sprAnswers: q.sprAnswers, selected: answer, student: { weakDomains } }),
       });
       const data = await res.json();
       setExp(data.text ?? "");

@@ -25,7 +25,8 @@ export interface DurdenContext {
   sprAnswers?: string[];       // review only (accepted grid-in answers)
   isSpr?: boolean;
   desmosAvailable?: boolean;   // math
-  student?: { targetScore?: number; struggles?: string[] };
+  desmosState?: string;        // current Desmos expressions (latex), if any
+  student?: { targetScore?: number; struggles?: string[]; weakDomains?: string[] };
 }
 
 export type DurdenMessage = { role: "user" | "assistant"; content: string };
@@ -107,6 +108,7 @@ function contextBlock(ctx: DurdenContext): string {
   if (ctx.section) L.push(`Section: ${ctx.section}`);
   if (ctx.questionType) L.push(`Question type: ${ctx.questionType}`);
   if (ctx.desmosAvailable) L.push(`Desmos calculator: available on screen`);
+  if (ctx.desmosState) L.push(`Student's current Desmos input: ${strip(ctx.desmosState)} (check whether it fits the problem)`);
   if (ctx.passageHtml) L.push(`PASSAGE / CONTEXT:\n${strip(ctx.passageHtml)}`);
   if (ctx.stemHtml) L.push(`QUESTION: ${strip(ctx.stemHtml)}`);
   if (ctx.choices && ctx.choices.length) L.push(`CHOICES:\n${ctx.choices.map((c) => `${c.id}. ${strip(c.text)}`).join("\n")}`);
@@ -122,8 +124,10 @@ function studentBlock(ctx: DurdenContext): string {
   if (!s) return "";
   const b: string[] = [];
   if (s.targetScore) b.push(`target ${s.targetScore}`);
-  if (s.struggles && s.struggles.length) b.push(`weak on: ${s.struggles.slice(0, 4).join(", ")}`);
-  return b.length ? `\nStudent profile: ${b.join("; ")}. Tune your depth to this.` : "";
+  if (s.struggles && s.struggles.length) b.push(`self-reported weak on: ${s.struggles.slice(0, 4).join(", ")}`);
+  if (s.weakDomains && s.weakDomains.length) b.push(`actually keeps missing (from real tests): ${s.weakDomains.slice(0, 4).join(", ")}`);
+  if (!b.length) return "";
+  return `\nStudent profile: ${b.join("; ")}. Tune your depth to this. If this question hits a domain they keep missing, name that pattern in one line and aim straight at it.`;
 }
 
 export function buildSystem(ctx: DurdenContext): string {

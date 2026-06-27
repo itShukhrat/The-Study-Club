@@ -39,12 +39,16 @@ function loadDesmos(): Promise<void> {
 export function DesmosCalculator({
   height = 420,
   kind = "graphing",
+  onExpressions,
 }: {
   height?: number;
   kind?: "graphing" | "scientific";
+  onExpressions?: (latex: string[]) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const calcRef = useRef<any>(null);
+  const cbRef = useRef(onExpressions);
+  cbRef.current = onExpressions;
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -61,6 +65,18 @@ export function DesmosCalculator({
                 border: false,
                 keypad: true,
               });
+        if (kind !== "scientific" && calcRef.current?.observeEvent) {
+          calcRef.current.observeEvent("change", () => {
+            try {
+              const ex = (calcRef.current.getExpressions?.() || [])
+                .map((e: any) => e.latex)
+                .filter((x: string) => x && x.trim());
+              cbRef.current?.(ex);
+            } catch {
+              /* noop */
+            }
+          });
+        }
       })
       .catch(() => mounted && setError(true));
 

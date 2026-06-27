@@ -25,7 +25,7 @@ export type ExamModule = {
   questions: ExamQuestion[];
 };
 
-export type ExamTest = { id: string; title: string; modules: ExamModule[] };
+export type ExamTest = { id: string; title: string; modules: ExamModule[]; kind?: "practice" | "mock" };
 
 // [low, high] indexed by raw score
 export const RW_TABLE: [number, number][] = [
