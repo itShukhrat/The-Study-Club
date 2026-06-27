@@ -191,9 +191,9 @@ export function Today() {
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
-            ["Daily warm-up", "10 questions, mixed difficulty"],
-            ["Review the misses", "Turn yesterday's mistakes into reps"],
-            ["Word of the day", "Keep the vocab streak breathing"],
+            ["Daily warm-up", "Ten questions. Five minutes. Wake the brain up before it argues."],
+            ["Review the misses", "Yesterday's wrong answers, turned into tomorrow's points."],
+            ["Word of the day", "One word a day. The vocabulary compounds while you sleep."],
           ].map(([title, sub]) => (
             <div
               key={title}
