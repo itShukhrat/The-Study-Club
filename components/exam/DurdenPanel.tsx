@@ -1,41 +1,41 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
 import { X, Loader2, Flame, ArrowUp, Lock } from "lucide-react";
+import type { DurdenContext, DurdenMode } from "@/lib/durden";
 
-type Q = {
-  passageHtml?: string;
-  stemHtml: string;
-  choices?: { id: string; text: string }[];
-  skill?: string;
-  domain?: string;
-};
 type Msg = { role: "user" | "assistant"; content: string };
+type Ctx = Partial<DurdenContext> & { mode: DurdenMode };
 
-const QUICK = ["Point me at the key line.", "Walk me through it.", "What&rsquo;s the play here?"];
-const QUICK_RAW = ["Point me at the key line.", "Walk me through it.", "What's the play here?"];
+const SUBTITLE: Record<DurdenMode, string> = {
+  practice: "practice coach",
+  review: "review engine",
+  platform: "your guide",
+  university: "coming soon",
+};
 
-export function DurdenPanel({
-  q,
-  section,
-  onClose,
-}: {
-  q: Q;
-  section: string;
-  onClose: () => void;
-}) {
-  const [tab, setTab] = useState<"ask" | "explain" | "info">("ask");
+function quickPrompts(ctx: Ctx): string[] {
+  if (ctx.mode === "review")
+    return ["Why is the right answer right?", "Why did my answer fail?", "What should I drill next?"];
+  if (ctx.mode === "platform")
+    return ["What do I do first?", "How do streaks work?", "How does practice work?"];
+  // practice
+  const base = ["What's the trap here?", "Walk me through it"];
+  if (ctx.section === "Math") base.push("Show me the Desmos way");
+  base.push("Just give me the answer");
+  return base;
+}
+
+export function DurdenPanel({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
 
-  // reset the conversation when the question changes
+  // new question / new context -> fresh conversation
   useEffect(() => {
     setMsgs([]);
-    setTab("ask");
-  }, [q.stemHtml]);
+  }, [ctx.stemHtml, ctx.mode]);
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
@@ -52,7 +52,7 @@ export function DurdenPanel({
       const res = await fetch("/api/tutor", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mode: "chat", section, passage: q.passageHtml, stem: q.stemHtml, choices: q.choices, messages: next }),
+        body: JSON.stringify({ ...ctx, messages: next }),
       });
       const data = await res.json();
       setMsgs((m) => [...m, { role: "assistant", content: data.text ?? "..." }]);
@@ -63,6 +63,8 @@ export function DurdenPanel({
     }
   }
 
+  const locked = ctx.allowed === false;
+
   return (
     <div className="flex h-full flex-col" style={{ background: "#fbfaf6", borderLeft: "1px solid var(--paper-line)" }}>
       {/* header */}
@@ -72,44 +74,43 @@ export function DurdenPanel({
             <Flame size={15} />
           </span>
           <span className="font-display text-lg leading-none" style={{ color: "var(--carbon)" }}>DURDEN</span>
-          <span className="font-mono text-[0.54rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>your tutor</span>
+          <span className="font-mono text-[0.54rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>{SUBTITLE[ctx.mode]}</span>
         </div>
         <button onClick={onClose} aria-label="Close" style={{ color: "var(--carbon-3)" }} className="transition-colors hover:text-[var(--carbon)]">
           <X size={18} />
         </button>
       </div>
-
-      {/* tabs */}
-      <div className="mt-3 flex gap-1 px-4">
-        {([["ask","Ask Durden"],["explain","Explanation"],["info","Info"]] as const).map(([id,label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            className="rounded-t-lg px-3 py-1.5 text-[0.78rem] font-medium transition-colors"
-            style={{ color: tab===id ? "var(--carbon)" : "var(--carbon-3)", borderBottom: tab===id ? "2px solid var(--ember)" : "2px solid transparent" }}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="exam-divider h-px" />
+      <div className="exam-divider mt-3 h-px" style={{ background: "var(--paper-line)" }} />
 
       {/* body */}
       <div ref={scroller} className="flex-1 overflow-y-auto px-4 py-4">
-        {tab === "ask" && (
+        {locked ? (
+          <div className="grid h-full place-content-center text-center">
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style={{ background: "#efece4", color: "var(--carbon-3)" }}><Lock size={20} /></span>
+            <p className="serif mt-3 text-lg font-bold" style={{ color: "var(--carbon)" }}>Silent during the mock.</p>
+            <p className="mt-1 text-sm" style={{ color: "var(--carbon-2)" }}>This is the real thing. Finish it, then I&rsquo;ll tear every question apart in review.</p>
+          </div>
+        ) : msgs.length === 0 ? (
+          <div className="grid h-full place-content-center text-center">
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style={{ background: "rgba(209,36,20,.1)", color: "var(--ember)" }}><Flame size={22} /></span>
+            <p className="serif mt-3 text-xl font-bold" style={{ color: "var(--carbon)" }}>
+              {ctx.mode === "platform" ? "What do you want to know?" : ctx.mode === "review" ? "Let's break it down." : "What are you stuck on?"}
+            </p>
+            <p className="mt-1 text-sm" style={{ color: "var(--carbon-2)" }}>
+              {ctx.mode === "platform" ? "Ask how anything here works." : "Short and sharp. Ask, or tap one:"}
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              {quickPrompts(ctx).map((qp) => (
+                <button key={qp} onClick={() => send(qp)}
+                  className="rounded-full border px-3.5 py-2 text-sm transition-colors hover:border-[var(--ember)]"
+                  style={{ borderColor: "var(--paper-line-2)", color: "var(--carbon)" }}>
+                  {qp}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
           <>
-            {msgs.length === 0 && (
-              <div className="grid h-full place-content-center text-center">
-                <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style={{ background: "rgba(209,36,20,.1)", color: "var(--ember)" }}><Flame size={22} /></span>
-                <p className="serif mt-3 text-xl font-bold" style={{ color: "var(--carbon)" }}>What are you stuck on?</p>
-                <p className="mt-1 text-sm" style={{ color: "var(--carbon-2)" }}>I won&rsquo;t hand you the letter. I&rsquo;ll show you how to take it.</p>
-                <div className="mt-5 flex flex-col gap-2">
-                  {QUICK.map((qp, i) => (
-                    <button key={i} onClick={() => send(QUICK_RAW[i])}
-                      className="rounded-full border px-3.5 py-2 text-sm transition-colors hover:border-[var(--ember)]"
-                      style={{ borderColor: "var(--paper-line-2)", color: "var(--carbon)" }}
-                      dangerouslySetInnerHTML={{ __html: qp }} />
-                  ))}
-                </div>
-              </div>
-            )}
             {msgs.map((m, i) => (
               <div key={i} className={"mb-3 flex " + (m.role === "user" ? "justify-end" : "justify-start")}>
                 <div className="max-w-[88%] whitespace-pre-line rounded-2xl px-3.5 py-2.5 text-[0.9rem] leading-relaxed"
@@ -127,27 +128,10 @@ export function DurdenPanel({
             )}
           </>
         )}
-
-        {tab === "explain" && (
-          <div className="grid h-full place-content-center text-center">
-            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style={{ background: "#efece4", color: "var(--carbon-3)" }}><Lock size={20} /></span>
-            <p className="serif mt-3 text-lg font-bold" style={{ color: "var(--carbon)" }}>Locked till the bell.</p>
-            <p className="mt-1 text-sm" style={{ color: "var(--carbon-2)" }}>Finish the test and I&rsquo;ll tear every question apart — answer, trap, and the habit that fixes it.</p>
-          </div>
-        )}
-
-        {tab === "info" && (
-          <div className="text-sm" style={{ color: "var(--carbon-2)" }}>
-            <p className="font-mono text-[0.6rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>This question tests</p>
-            <p className="serif mt-1 text-lg font-bold" style={{ color: "var(--carbon)" }}>{q.skill || q.domain || "SAT skill"}</p>
-            <p className="mt-3">Domain: {q.domain}</p>
-            <p className="mt-3" style={{ color: "var(--carbon-3)" }}>Tip: name the job of the blank or the question before you look at a single choice. Prediction beats recognition.</p>
-          </div>
-        )}
       </div>
 
       {/* input */}
-      {tab === "ask" && (
+      {!locked && (
         <div className="px-3 pb-3">
           <div className="flex items-end gap-2 rounded-2xl border px-3 py-2" style={{ borderColor: "var(--paper-line-2)", background: "#fff" }}>
             <textarea
@@ -163,9 +147,6 @@ export function DurdenPanel({
               <ArrowUp size={16} />
             </button>
           </div>
-          <p className="mt-1.5 text-center font-mono text-[0.56rem] uppercase tracking-[0.14em]" style={{ color: "var(--carbon-3)" }}>
-            Durden coaches — he won&rsquo;t hand you the answer
-          </p>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { DurdenLauncher } from "@/components/dashboard/DurdenLauncher";
 
 export const metadata: Metadata = {
   title: "Today",
@@ -18,6 +19,7 @@ export default function DashboardLayout({
           {children}
         </div>
       </main>
+      <DurdenLauncher />
     </div>
   );
 }

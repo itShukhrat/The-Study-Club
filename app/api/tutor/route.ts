@@ -1,103 +1,81 @@
 import { NextResponse } from "next/server";
-import { deepseekChat, deepseekMessages } from "@/lib/ai";
+import { deepseekMessages } from "@/lib/ai";
+import {
+  buildSystem,
+  maxTokensFor,
+  isAllowed,
+  type DurdenContext,
+  type DurdenMessage,
+  type DurdenMode,
+} from "@/lib/durden";
 
 export const runtime = "nodejs";
 
-const strip = (s: unknown) =>
-  String(s ?? "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&rsquo;|&lsquo;/g, "'")
-    .replace(/&ldquo;|&rdquo;/g, '"')
-    .replace(/&mdash;/g, "—")
-    .replace(/&ndash;/g, "–")
-    .replace(/&eacute;/g, "é")
-    .replace(/&iacute;/g, "í")
-    .replace(/&aacute;/g, "á")
-    .replace(/&atilde;/g, "ã")
-    .replace(/&#?\w+;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 2400);
+const MODES: DurdenMode[] = ["platform", "practice", "review", "university"];
+// legacy callers: hint/explain/chat -> practice/review/practice
+const LEGACY: Record<string, DurdenMode> = { hint: "practice", explain: "review", chat: "practice" };
 
-const DURDEN = `You are DURDEN — the AI tutor inside Study Club, an SAT app.
-Persona: a genuinely excellent SAT teacher with the swagger and bite of Tyler Durden
-(never quote or name the film). Sharp, fast, dry wit — a clever line here and there,
-never a clown. You make students THINK; you do not do their thinking for them.
-Hard rules:
-- During a LIVE question, never reveal or strongly imply the correct choice. If they
-  beg for "the answer" or "which letter," refuse with attitude and hand them the ONE
-  move that cracks it instead.
-- Stay on THIS question/passage and real SAT strategy. If they wander (jokes, life
-  advice, unrelated stuff), snap them back in a single line, then keep teaching.
-- No "As an AI," no disclaimers, no emoji, no corporate filler. Second person.
-- Tight by default (under ~80 words). If they say "walk me through it," go step by
-  step — but leave the final step for them.
-- You can see the passage, question, and choices you're handed. Use them.`;
-
-function ctxBlock(b: { section?: string; passage?: string; stem?: string; choices?: { id: string; text: string }[] }) {
-  const choices = (b.choices || []).map((c) => `${c.id}. ${strip(c.text)}`).join("\n");
-  return `SECTION: ${b.section || "Reading & Writing"}
-${b.passage ? `PASSAGE / CONTEXT:\n${strip(b.passage)}\n` : ""}QUESTION: ${strip(b.stem)}
-${choices ? `CHOICES:\n${choices}` : ""}`;
+function fallback(mode: DurdenMode): string {
+  if (mode === "review")
+    return "Re-read the question, find what the right answer does that the others don't, and name the trap you fell for. That's the rep.";
+  if (mode === "platform")
+    return "Start with the baseline test from your dashboard - it draws your route. Then one rep a day keeps the streak alive.";
+  return "Strip the question to its job. Predict the answer before you look, then kill the two choices that can't do that job and commit.";
 }
 
 export async function POST(request: Request) {
-  let body: {
-    mode?: "hint" | "explain" | "chat";
-    section?: string;
-    passage?: string;
-    stem?: string;
-    choices?: { id: string; text: string }[];
-    correct?: string;
-    chosen?: string;
-    messages?: { role: "user" | "assistant"; content: string }[];
-  };
+  let body:
+    | (Partial<DurdenContext> & { messages?: DurdenMessage[]; chosen?: string; deep?: boolean })
+    | null = null;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }
+  if (!body) return NextResponse.json({ error: "bad request" }, { status: 400 });
 
-  const mode = body.mode || "hint";
+  const raw = String(body.mode || "practice");
+  const mode: DurdenMode = (MODES.includes(raw as DurdenMode) ? (raw as DurdenMode) : LEGACY[raw] || "practice");
 
-  if (mode === "chat") {
-    const history = (body.messages || [])
-      .slice(-10)
-      .map((m) => ({ role: m.role, content: String(m.content).slice(0, 1200) }));
-    if (!history.length) return NextResponse.json({ text: "Ask me something about this question." });
-    const messages = [
-      { role: "system" as const, content: `${DURDEN}\n\nThe student is on this question (the answer key is hidden from you on purpose — coach, don't leak):\n${ctxBlock(body)}` },
-      ...history,
-    ];
-    const text = await deepseekMessages(messages, { maxTokens: 460, temperature: 0.65 });
+  const ctx: DurdenContext = { ...body, mode };
+  if (body.chosen && !ctx.selected) ctx.selected = body.chosen; // legacy field
+
+  // UNIVERSITY door is locked - teaser only.
+  if (mode === "university") {
     return NextResponse.json({
-      text: text || "Durden's offline (no AI key / no balance). Strip the question to its job, kill two choices, commit.",
-      source: text ? "ai" : "fallback",
+      text: "University & scholarship guidance isn't open yet - it's being built. When it lands I'll match you to schools and scholarships by your GPA, SAT score, target year, country, and budget. For now: move the score. That's the ticket that opens every door.",
+      source: "locked",
+      locked: true,
     });
   }
 
-  if (mode === "explain") {
-    const system = `${DURDEN}
-The test is OVER — full breakdown allowed. Correct answer: ${body.correct || "?"}.
-${body.chosen ? `Student chose ${body.chosen}.` : ""}
-Under 130 words: walk the real reasoning to the right answer, name the trap in the most
-tempting wrong choice, and if they missed it, the one habit that fixes it. End on a line
-they'd remember. No headings, no markdown.`;
-    const text = await deepseekChat({ system, user: ctxBlock(body), maxTokens: 520, temperature: 0.4 });
+  // TEST LOCKOUT - server-enforced, not just a hidden button.
+  if (!isAllowed(ctx)) {
     return NextResponse.json({
-      text: text || `The answer is ${body.correct}. Re-read the question, eliminate two wrong choices first, then check exactly what made the right one right.`,
-      source: text ? "ai" : "fallback",
+      text: "Locked. You're in a full mock and I don't talk during the real thing. Finish the section - the moment the bell rings, I'll tear every question apart in review.",
+      source: "locked",
+      locked: true,
     });
   }
 
-  // hint
-  const system = `${DURDEN}
-The student is mid-test and wants a HINT. Do NOT reveal the letter. 2-3 short lines:
-name what this question really tests, hand them one concrete move, dare them to
-eliminate. Never the answer.`;
-  const text = await deepseekChat({ system, user: ctxBlock(body), maxTokens: 360, temperature: 0.6 });
-  return NextResponse.json({
-    text: text || "What is the blank/underline actually DOING in that sentence? Predict it in your own words first, then cross out the two choices that can't do that job.",
-    source: text ? "ai" : "fallback",
+  let history: DurdenMessage[] = (body.messages || [])
+    .slice(-10)
+    .map((m) => ({ role: m.role, content: String(m.content).slice(0, 1400) }));
+
+  // one-shot callers (e.g. review "explain this") send no chat history -> synthesize the ask
+  if (!history.length) {
+    if (mode === "review")
+      history = [{ role: "user", content: "Explain this question - why the right answer is right and why mine was wrong." }];
+    else if (ctx.stemHtml)
+      history = [{ role: "user", content: "Help me with this question." }];
+    else return NextResponse.json({ text: "Ask me what you're stuck on.", source: "empty" });
+  }
+
+  const messages = [{ role: "system" as const, content: buildSystem(ctx) }, ...history];
+  const text = await deepseekMessages(messages, {
+    maxTokens: maxTokensFor(ctx, !!body.deep),
+    temperature: mode === "review" ? 0.4 : 0.6,
   });
+
+  return NextResponse.json({ text: text || fallback(mode), source: text ? "ai" : "fallback" });
 }

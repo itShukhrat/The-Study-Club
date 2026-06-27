@@ -195,7 +195,21 @@ export function ExamRunner({ test }: { test: ExamTest }) {
         </div>
         {durden && (
           <div className="hidden w-[360px] shrink-0 md:block">
-            <DurdenPanel q={q} section={isMath ? "Math" : "Reading & Writing"} onClose={() => setDurden(false)} />
+            <DurdenPanel
+              ctx={{
+                mode: "practice",
+                allowed: true,
+                section: isMath ? "Math" : "Reading & Writing",
+                questionType: q.skill || q.domain,
+                passageHtml: q.passageHtml,
+                stemHtml: q.stemHtml,
+                choices: q.choices,
+                selected: answers[key],
+                isSpr: q.type === "spr",
+                desmosAvailable: isMath && calcOpen,
+              }}
+              onClose={() => setDurden(false)}
+            />
           </div>
         )}
       </div>

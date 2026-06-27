@@ -148,7 +148,7 @@ function ReviewRow({ q, answer, section }: { q: ExamQuestion; answer?: string; s
       const res = await fetch("/api/tutor", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mode: "explain", section, passage: q.passageHtml, stem: q.stemHtml, choices: q.choices, correct: q.correct, chosen: answer }),
+        body: JSON.stringify({ mode: "review", allowed: true, section, questionType: q.skill || q.domain, passageHtml: q.passageHtml, stemHtml: q.stemHtml, choices: q.choices, correct: q.correct, sprAnswers: q.sprAnswers, selected: answer }),
       });
       const data = await res.json();
       setExp(data.text ?? "");
