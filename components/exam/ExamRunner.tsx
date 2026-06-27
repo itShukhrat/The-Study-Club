@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -21,10 +21,14 @@ import {
   StickyNote,
   Infinity as InfinityIcon,
   Gem,
+  Coffee,
+  RotateCcw,
+  ShieldCheck,
 } from "lucide-react";
 import type { ExamTest, AnswerMap, ExamQuestion } from "@/lib/exam";
 import { answerKey } from "@/lib/exam";
 import { loadProgress } from "@/lib/progress";
+import { loadSession, saveSession, clearSession, type ExamSnapshot } from "@/lib/exam-session";
 import { DurdenPanel } from "./DurdenPanel";
 import { ScoreReport } from "./ScoreReport";
 import { DesmosCalculator } from "@/components/practice/DesmosCalculator";
@@ -67,38 +71,76 @@ export function ExamRunner({ test }: { test: ExamTest }) {
   const [palette, setPalette] = useState(false);
   const [finished, setFinished] = useState(false);
   const [secLeft, setSecLeft] = useState<number | null>(null);
+  const [phase, setPhase] = useState<"test" | "break">("test");
+  const [breakLeft, setBreakLeft] = useState(600);
+  const [savedSnap, setSavedSnap] = useState<ExamSnapshot | null>(null);
   const [weakDomains, setWeakDomains] = useState<string[]>([]);
   const [desmosExprs, setDesmosExprs] = useState<string[]>([]);
-  useEffect(() => { setWeakDomains(loadProgress().weakDomains); }, []);
+  const justResumed = useRef(false);
+
+  const isMock = test.kind === "mock";
+
+  // first paint: load weakness data + detect a resumable session for this test
+  useEffect(() => {
+    setWeakDomains(loadProgress().weakDomains);
+    const snap = loadSession(test.id);
+    if (snap && snap.mode && !snap.finished) setSavedSnap(snap);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const moduleObj = test.modules[mi];
   const q = moduleObj.questions[qi];
   const isMath = moduleObj.section === "math";
   const key = answerKey(moduleObj.id, q.n);
   const total = moduleObj.questions.length;
-  const isMock = test.kind === "mock";
   const answeredCount = moduleObj.questions.filter((qq) => answers[answerKey(moduleObj.id, qq.n)]).length;
 
+  // reset the section clock + floating tools when the module changes,
+  // but keep the clock intact when we just rehydrated a resumed session
   useEffect(() => {
-    if (mode === "timed") setSecLeft(moduleObj.minutes * 60);
-    else setSecLeft(null);
     setCalcOpen(false);
     setRefOpen(false);
+    if (justResumed.current) { justResumed.current = false; return; }
+    if (mode === "timed") setSecLeft(moduleObj.minutes * 60);
+    else setSecLeft(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mi, mode]);
 
-  function advanceModule() {
-    if (mi < test.modules.length - 1) { setMi(mi + 1); setQi(0); }
-    else setFinished(true);
-  }
-
+  // autosave: persist the live session on every meaningful change (FULL_TEST_SESSION_SCHEMA)
   useEffect(() => {
-    if (mode !== "timed" || paused || finished || secLeft == null) return;
+    if (mode === null || finished) return;
+    saveSession(test.id, { mode, mi, qi, secLeft, paused, phase, breakLeft, answers, marked, elim, savedAt: Date.now() });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, mi, qi, secLeft, paused, phase, breakLeft, answers, marked, elim, finished]);
+
+  function advanceModule() {
+    const nextMi = mi + 1;
+    if (nextMi >= test.modules.length) { clearSession(test.id); setFinished(true); return; }
+    // 10-minute break between Reading & Writing and Math (real digital SAT order)
+    if (moduleObj.section === "rw" && test.modules[nextMi].section === "math" && phase !== "break") {
+      setPhase("break");
+      setBreakLeft(600);
+      return;
+    }
+    setMi(nextMi);
+    setQi(0);
+  }
+  function endBreak() { setPhase("test"); setMi(mi + 1); setQi(0); }
+
+  // unified timer: drives the section clock during the test, the break clock during the break
+  useEffect(() => {
+    if (mode !== "timed" || paused || finished) return;
+    if (phase === "break") {
+      if (breakLeft <= 0) { endBreak(); return; }
+      const t = setTimeout(() => setBreakLeft((b) => b - 1), 1000);
+      return () => clearTimeout(t);
+    }
+    if (secLeft == null) return;
     if (secLeft <= 0) { advanceModule(); return; }
     const t = setTimeout(() => setSecLeft((s) => (s == null ? null : s - 1)), 1000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, paused, finished, secLeft]);
+  }, [mode, paused, finished, phase, secLeft, breakLeft]);
 
   function select(letter: string) { if (elim[key]?.[letter]) return; setAnswers((a) => ({ ...a, [key]: letter })); }
   function setSpr(v: string) { setAnswers((a) => ({ ...a, [key]: v })); }
@@ -110,8 +152,37 @@ export function ExamRunner({ test }: { test: ExamTest }) {
   function next() { if (qi < total - 1) setQi(qi + 1); else advanceModule(); }
   function back() { if (qi > 0) setQi(qi - 1); }
 
-  if (mode === null) return <StartModal test={test} onPick={setMode} onExit={() => router.push("/dashboard/practice")} />;
-  if (finished) return <ScoreReport test={test} answers={answers} onRetake={() => { setAnswers({}); setMarked({}); setElim({}); setFinished(false); setMi(0); setQi(0); setMode(null); }} onExit={() => router.push("/dashboard/practice")} />;
+  function startFresh(m: Mode) { clearSession(test.id); setSavedSnap(null); setMode(m); }
+  function applyResume(s: ExamSnapshot) {
+    justResumed.current = true;
+    setMode(s.mode);
+    setMi(s.mi); setQi(s.qi); setSecLeft(s.secLeft);
+    setAnswers(s.answers || {}); setMarked(s.marked || {}); setElim(s.elim || {});
+    setPhase(s.phase || "test"); setBreakLeft(s.breakLeft ?? 600);
+    setSavedSnap(null);
+  }
+  function resetAll() {
+    clearSession(test.id);
+    setAnswers({}); setMarked({}); setElim({}); setFinished(false);
+    setMi(0); setQi(0); setPhase("test"); setBreakLeft(600); setMode(null);
+  }
+
+  if (mode === null) {
+    if (savedSnap) {
+      return (
+        <ResumeModal
+          test={test}
+          snap={savedSnap}
+          onResume={() => applyResume(savedSnap)}
+          onStartOver={() => { clearSession(test.id); setSavedSnap(null); }}
+          onExit={() => router.push("/dashboard/practice")}
+        />
+      );
+    }
+    return <StartModal test={test} isMock={isMock} onPick={startFresh} onExit={() => router.push("/dashboard/practice")} />;
+  }
+  if (finished) return <ScoreReport test={test} answers={answers} onRetake={resetAll} onExit={() => router.push("/dashboard/practice")} />;
+  if (phase === "break") return <BreakScreen breakLeft={breakLeft} onResume={endBreak} onExit={() => router.push("/dashboard/practice")} />;
 
   const lastOfTest = mi === test.modules.length - 1 && qi === total - 1;
   const card = (
@@ -124,7 +195,6 @@ export function ExamRunner({ test }: { test: ExamTest }) {
       <QuestionCard q={q} selected={answers[key]} elim={elim[key]} marked={!!marked[key]} onSelect={select} onSpr={setSpr} onElim={toggleElim} onMark={toggleMark} />
     </motion.div>
   );
-
   return (
     <div className="exam fixed inset-0 z-[80] flex flex-col">
       <header className="relative flex items-center justify-between gap-3 border-b px-4 py-2.5" style={{ borderColor: "var(--paper-line)" }}>
@@ -298,8 +368,7 @@ export function ExamRunner({ test }: { test: ExamTest }) {
       </AnimatePresence>
     </div>
   );
-}
-function ToolBtn({ onClick, on, icon, label }: { onClick: () => void; on: boolean; icon: React.ReactNode; label: string }) {
+}function ToolBtn({ onClick, on, icon, label }: { onClick: () => void; on: boolean; icon: React.ReactNode; label: string }) {
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-0.5 rounded-lg px-2 py-1 transition-colors" style={{ color: on ? "var(--ember)" : "var(--carbon-2)" }} title={label}>
       {icon}
@@ -377,16 +446,113 @@ function QuestionCard({
   );
 }
 
+function BreakScreen({ breakLeft, onResume, onExit }: { breakLeft: number; onResume: () => void; onExit: () => void }) {
+  const low = breakLeft <= 60;
+  return (
+    <div className="exam fixed inset-0 z-[80] grid place-items-center px-5 text-center">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="exam-card w-full max-w-md p-9">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl" style={{ background: "#e9eeff", color: "var(--color-azure, #2b5cf0)" }}><Coffee size={26} /></span>
+        <p className="mt-4 font-mono text-[0.62rem] uppercase tracking-[0.24em]" style={{ color: "var(--carbon-3)" }}>Section break</p>
+        <h1 className={"font-display mt-1 text-6xl tabular-nums " + (low ? "exam-timer-low" : "")}>{fmt(breakLeft)}</h1>
+        <p className="mt-3 text-sm" style={{ color: "var(--carbon-2)" }}>
+          Reading &amp; Writing is done. Math is next. Stand up, breathe, reset &mdash; the break runs whether you watch it or not.
+        </p>
+        <button onClick={onResume} className="exam-btn exam-btn-ember mt-6">Start Math now <ArrowRight size={15} /></button>
+        <button onClick={onExit} className="mt-5 block w-full font-mono text-[0.62rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>&larr; Leave &mdash; your place is saved</button>
+      </motion.div>
+    </div>
+  );
+}
+
+function ResumeModal({
+  test,
+  snap,
+  onResume,
+  onStartOver,
+  onExit,
+}: {
+  test: ExamTest;
+  snap: ExamSnapshot;
+  onResume: () => void;
+  onStartOver: () => void;
+  onExit: () => void;
+}) {
+  const m = test.modules[snap.mi];
+  const where = snap.phase === "break" ? "On the section break" : `${m?.label ?? "Module"} · Question ${snap.qi + 1}`;
+  const timeLeft = snap.phase === "break"
+    ? `${fmt(snap.breakLeft)} of break left`
+    : snap.secLeft != null ? `${fmt(snap.secLeft)} on the clock` : "Untimed";
+  const answered = Object.values(snap.answers || {}).filter(Boolean).length;
+  return (
+    <div className="exam fixed inset-0 z-[80] grid place-items-center px-5 text-center">
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="exam-card w-full max-w-md p-8">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl" style={{ background: "#e9eeff", color: "var(--color-azure, #2b5cf0)" }}><RotateCcw size={24} /></span>
+        <h1 className="serif mt-4 text-3xl font-bold">Pick up where you left off?</h1>
+        <p className="mt-2 text-sm" style={{ color: "var(--carbon-2)" }}>Your test was saved. Nothing is lost.</p>
+        <div className="mt-5 rounded-xl border p-4 text-left" style={{ borderColor: "var(--paper-line-2)" }}>
+          <p className="font-semibold">{where}</p>
+          <p className="mt-1 text-sm" style={{ color: "var(--carbon-2)" }}>{timeLeft} &middot; {answered} answered</p>
+        </div>
+        <button onClick={onResume} className="exam-btn exam-btn-ember mt-6 w-full justify-center">Resume test <ArrowRight size={15} /></button>
+        <button onClick={onStartOver} className="exam-btn exam-btn-ghost mt-2 w-full justify-center">Start over</button>
+        <button onClick={onExit} className="mt-4 font-mono text-[0.62rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>&larr; Back to Question Bank</button>
+      </motion.div>
+    </div>
+  );
+}
+
+function BriefRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b pb-2 text-sm" style={{ borderColor: "var(--paper-line)" }}>
+      <span style={{ color: "var(--carbon-2)" }}>{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
 function StartModal({
   test,
+  isMock,
   onPick,
   onExit,
 }: {
   test: ExamTest;
+  isMock: boolean;
   onPick: (m: Mode) => void;
   onExit: () => void;
 }) {
   const mins = test.modules.reduce((s, m) => s + m.minutes, 0);
+  const qCount = test.modules.reduce((s, m) => s + m.questions.length, 0);
+
+  if (isMock) {
+    return (
+      <div className="exam fixed inset-0 z-[80] grid place-items-center overflow-y-auto px-5 py-10">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="exam-card w-full max-w-lg p-8">
+          <p className="text-center font-mono text-[0.62rem] uppercase tracking-[0.24em]" style={{ color: "var(--carbon-3)" }}>Study Club &middot; Full mock</p>
+          <h1 className="serif mt-2 text-center text-4xl font-bold">{test.title}</h1>
+          <p className="mt-3 text-center text-sm" style={{ color: "var(--carbon-2)" }}>
+            You&rsquo;re entering exam mode. One clock. No Durden, no hints, no shortcuts. Review opens after the score.
+          </p>
+
+          <div className="mt-6 flex flex-col gap-2.5">
+            <BriefRow label="Reading &amp; Writing" value="2 modules · 32 min each" />
+            <BriefRow label="Break" value="10 minutes" />
+            <BriefRow label="Math" value="2 modules · 35 min each" />
+            <BriefRow label="Total" value={`${mins} min + break · ${qCount} questions`} />
+          </div>
+
+          <div className="mt-5 flex items-start gap-2 rounded-xl border p-3 text-xs" style={{ borderColor: "var(--paper-line-2)", color: "var(--carbon-2)" }}>
+            <ShieldCheck size={15} className="mt-0.5 shrink-0" style={{ color: "var(--color-azure, #2b5cf0)" }} />
+            <span>Tools: highlight, mark for review, cross-out, plus calculator and reference on Math. Durden is locked until you submit. If you leave, your place is saved &mdash; you can resume.</span>
+          </div>
+
+          <button onClick={() => onPick("timed")} className="exam-btn exam-btn-ember mt-6 w-full justify-center">Start test <ArrowRight size={15} /></button>
+          <button onClick={onExit} className="mt-4 block w-full text-center font-mono text-[0.62rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>&larr; Back to Question Bank</button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="exam fixed inset-0 z-[80] grid place-items-center overflow-y-auto px-5 py-10">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="exam-card w-full max-w-lg p-8 text-center">

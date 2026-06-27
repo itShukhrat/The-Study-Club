@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FullTestSession",
+  "description": "As-shipped resume snapshot. localStorage key `sc.exam.<testId>`; written on every meaningful change by ExamRunner via lib/exam-session.ts. Sessions older than 3h are treated as expired and cleared on load (EVAL_SET: Session Expiry).",
+  "type": "object",
+  "properties": {
+    "testId":    { "type": "string", "description": "e.g. 'test-1'" },
+    "mode":      { "type": "string", "enum": ["timed", "untimed"] },
+    "mi":        { "type": "integer", "minimum": 0, "description": "module index into ExamTest.modules (0=R&W M1, 1=R&W M2, 2=Math M1, 3=Math M2)" },
+    "qi":        { "type": "integer", "minimum": 0, "description": "question index within the current module" },
+    "secLeft":   { "type": ["number", "null"], "description": "seconds left in the section clock; null when untimed" },
+    "paused":    { "type": "boolean" },
+    "phase":     { "type": "string", "enum": ["test", "break"], "description": "'break' = the 10-minute break between R&W and Math" },
+    "breakLeft": { "type": "number", "description": "seconds left in the break (max 600)" },
+    "answers":   { "type": "object", "description": "AnswerMap: '<moduleId>:<questionNumber>' -> choice id or SPR string", "patternProperties": { "^.+:[0-9]+$": { "type": "string" } } },
+    "marked":    { "type": "object", "description": "answerKey -> flagged-for-review boolean" },
+    "elim":      { "type": "object", "description": "answerKey -> { choiceId: eliminated boolean }" },
+    "finished":  { "type": "boolean", "description": "cleared from storage on finish; never resumed" },
+    "savedAt":   { "type": "number", "description": "epoch ms of last autosave" }
+  },
+  "required": ["testId", "mode", "mi", "qi", "phase", "breakLeft", "answers", "savedAt"],
+  "x-implementation": {
+    "status": "SHIPPED",
+    "store": "localStorage only (offline-safe cache).",
+    "planned-hardening": [
+      "Supabase mirror for cross-device resume (EVAL_SET: Cross-Device Resume).",
+      "Server-issued signed session token binding startTime + 134-min duration (EVAL_SET: Exceeding Time / Tampering). The exam-session module is the seam for this; UI logic is unchanged when added.",
+      "Question-level timeSpent capture (QUESTION_STATE_SCHEMA)."
+    ],
+    "deltas-from-spec": "Spec used currentSection R&W/Math + currentModule 1..2; as-shipped uses a single module index (mi) which is equivalent and avoids a redundant field. answers keys are '<moduleId>:<n>', not 'Q...'."
+  }
+}
