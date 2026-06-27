@@ -99,6 +99,7 @@ export function Today() {
           label="Target"
           value={String(data.targetScore)}
           unit="/ 1600"
+          azure
         />
         <Stat icon={<Flame size={18} />} label="Streak" value="0" unit="start today" />
       </motion.div>
@@ -225,20 +226,23 @@ function Stat({
   value,
   unit,
   accent,
+  azure,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   unit: string;
   accent?: boolean;
+  azure?: boolean;
 }) {
+  const chip = azure
+    ? "bg-azure/[0.12] text-azure"
+    : accent
+      ? "bg-signal/15 text-signal"
+      : "bg-ink-2 text-bone-dim";
   return (
     <div className="card flex items-center gap-4 p-5">
-      <span
-        className={`grid h-11 w-11 place-items-center rounded-xl border border-line-2 ${
-          accent ? "bg-signal/15 text-signal" : "bg-ink-2 text-bone-dim"
-        }`}
-      >
+      <span className={`grid h-11 w-11 place-items-center rounded-xl border border-line-2 ${chip}`}>
         {icon}
       </span>
       <div>

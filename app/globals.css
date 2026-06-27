@@ -23,6 +23,11 @@
   --color-signal-hi: #ef3a2b;
   --color-signal-deep: #a8160b;
 
+  /* azure — the cool counterweight to signal (calm / analyze / the goal) */
+  --color-azure: #2b5cf0;
+  --color-azure-soft: #e9eeff;
+  --color-azure-deep: #1740c8;
+
   /* paper -> inverted dark accent block on the bright canvas */
   --color-paper: #16140f;
   --color-paper-ink: #f4f1e9;
@@ -237,6 +242,17 @@ body {
 .btn-ghost:hover {
   border-color: var(--color-bone);
   background: rgba(24, 22, 17, 0.05);
+}
+.btn-azure {
+  background: var(--color-azure);
+  color: #fff;
+}
+.btn-azure:hover {
+  background: var(--color-azure-deep);
+  box-shadow: 0 12px 40px -12px rgba(43, 92, 240, 0.55);
+}
+.text-glow-azure {
+  text-shadow: 0 0 26px rgba(43, 92, 240, 0.4);
 }
 
 /* ---------- keyframes ---------- */

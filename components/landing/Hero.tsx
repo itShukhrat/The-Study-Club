@@ -107,7 +107,7 @@ function HeroBackdrop() {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(80% 60% at 70% 15%, rgba(232,57,43,0.10), transparent 60%)",
+            "radial-gradient(68% 55% at 74% 12%, rgba(214,35,19,0.11), transparent 60%), radial-gradient(60% 50% at 10% 82%, rgba(43,92,240,0.12), transparent 60%)",
         }}
       />
       {/* grid */}
@@ -126,7 +126,7 @@ function HeroBackdrop() {
         1120
       </span>
       {/* ghost target */}
-      <span className="absolute right-[6%] top-[16%] font-display text-[18vw] leading-none text-signal/[0.07] sm:text-[10rem]">
+      <span className="absolute right-[6%] top-[16%] font-display text-[18vw] leading-none text-azure/[0.10] sm:text-[10rem]">
         1500
       </span>
       {/* the route between them */}

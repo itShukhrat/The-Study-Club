@@ -17,7 +17,7 @@ export type Track = {
 export const RW: Track = {
   id: "rw",
   name: "Reading & Writing",
-  blurb: "Evidence, structure, and the rules of clean English.",
+  blurb: "This is where points quietly leak. Plug the leaks — evidence, structure, clean sentences — and stop handing the test free wrong answers.",
   total: 1492,
   minutes: 64,
   domains: [
@@ -57,7 +57,7 @@ export const RW: Track = {
 export const MATH: Track = {
   id: "math",
   name: "Math",
-  blurb: "From clean algebra to the curveballs at the end.",
+  blurb: "Easy up top, traps at the end. We drill both until test day has nothing left to surprise you with.",
   total: 2390,
   minutes: 70,
   domains: [

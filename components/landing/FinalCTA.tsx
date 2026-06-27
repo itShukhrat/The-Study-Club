@@ -21,6 +21,17 @@ export function FinalCTA() {
           viewport={{ once: true }}
           transition={{ duration: 2, ease: "easeInOut" }}
         />
+        <motion.path
+          d="M-2 92 C 26 90, 34 58, 56 54 S 84 26, 104 14"
+          fill="none"
+          stroke="var(--color-azure)"
+          strokeWidth="0.2"
+          opacity="0.32"
+          initial={{ pathLength: 0 }}
+          whileInView={{ pathLength: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 2.2, ease: "easeInOut", delay: 0.3 }}
+        />
       </svg>
 
       <div className="relative mx-auto max-w-3xl text-center">
