@@ -18,6 +18,7 @@ export interface ExamSnapshot {
   answers: AnswerMap;
   marked: Record<string, boolean>;
   elim: Record<string, Record<string, boolean>>;
+  calcOpen?: boolean;
   finished?: boolean;
   savedAt: number;
 }

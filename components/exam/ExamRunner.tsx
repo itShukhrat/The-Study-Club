@@ -31,7 +31,7 @@ import { loadProgress } from "@/lib/progress";
 import { loadSession, saveSession, clearSession, type ExamSnapshot } from "@/lib/exam-session";
 import { DurdenPanel } from "./DurdenPanel";
 import { ScoreReport } from "./ScoreReport";
-import { DesmosCalculator } from "@/components/practice/DesmosCalculator";
+import { ExamCalculator } from "./ExamCalculator";
 
 type Mode = "timed" | "untimed";
 
@@ -98,9 +98,9 @@ export function ExamRunner({ test }: { test: ExamTest }) {
   // reset the section clock + floating tools when the module changes,
   // but keep the clock intact when we just rehydrated a resumed session
   useEffect(() => {
+    if (justResumed.current) { justResumed.current = false; return; }
     setCalcOpen(false);
     setRefOpen(false);
-    if (justResumed.current) { justResumed.current = false; return; }
     if (mode === "timed") setSecLeft(moduleObj.minutes * 60);
     else setSecLeft(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,9 +109,9 @@ export function ExamRunner({ test }: { test: ExamTest }) {
   // autosave: persist the live session on every meaningful change (FULL_TEST_SESSION_SCHEMA)
   useEffect(() => {
     if (mode === null || finished) return;
-    saveSession(test.id, { mode, mi, qi, secLeft, paused, phase, breakLeft, answers, marked, elim, savedAt: Date.now() });
+    saveSession(test.id, { mode, mi, qi, secLeft, paused, phase, breakLeft, answers, marked, elim, calcOpen, savedAt: Date.now() });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, mi, qi, secLeft, paused, phase, breakLeft, answers, marked, elim, finished]);
+  }, [mode, mi, qi, secLeft, paused, phase, breakLeft, answers, marked, elim, calcOpen, finished]);
 
   function advanceModule() {
     const nextMi = mi + 1;
@@ -159,6 +159,7 @@ export function ExamRunner({ test }: { test: ExamTest }) {
     setMi(s.mi); setQi(s.qi); setSecLeft(s.secLeft);
     setAnswers(s.answers || {}); setMarked(s.marked || {}); setElim(s.elim || {});
     setPhase(s.phase || "test"); setBreakLeft(s.breakLeft ?? 600);
+    setCalcOpen(!!s.calcOpen);
     setSavedSnap(null);
   }
   function resetAll() {
@@ -316,17 +317,9 @@ export function ExamRunner({ test }: { test: ExamTest }) {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {calcOpen && isMath && (
-          <motion.div drag dragMomentum={false} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="exam-card fixed left-6 top-20 z-[85] w-[min(92vw,460px)] overflow-hidden p-0">
-            <div className="flex cursor-grab items-center justify-between border-b px-3 py-2" style={{ borderColor: "var(--paper-line)" }}>
-              <span className="font-mono text-[0.62rem] uppercase tracking-[0.18em]" style={{ color: "var(--carbon-3)" }}>Desmos &middot; drag me</span>
-              <button onClick={() => setCalcOpen(false)} style={{ color: "var(--carbon-3)" }}><X size={15} /></button>
-            </div>
-            <DesmosCalculator height={380} onExpressions={setDesmosExprs} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {isMath && (
+        <ExamCalculator open={calcOpen} onClose={() => setCalcOpen(false)} onExpressions={setDesmosExprs} />
+      )}
 
       <AnimatePresence>
         {refOpen && isMath && (
