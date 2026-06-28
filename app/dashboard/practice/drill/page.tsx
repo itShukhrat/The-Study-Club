@@ -28,5 +28,5 @@ export default async function DrillPage({
     if (topic) contextLabel = topic.name;
   }
 
-  return <PracticeRoom backHref={backHref} backLabel={backLabel} contextLabel={contextLabel} />;
+  return <PracticeRoom backHref={backHref} backLabel={backLabel} contextLabel={contextLabel} section={track?.id} skill={sp.topic} />;
 }
